@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package proto;
+
+message VersionRequest {
+    bool include_dynamic = 1;
+}
+
+message VersionResponse {
+    string version = 1;
+    int32 uptime = 2;
+}
+
+service Version {
+    rpc GetVersion(VersionRequest) returns (VersionResponse) {}
+
+    rpc WatchVersion(VersionRequest) returns (stream VersionResponse) {}
+}
