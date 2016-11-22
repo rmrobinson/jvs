@@ -28,3 +28,5 @@ _testmain.go
 
 config.db
 
+# We exclude the build directory which we use for cmake builds
+build/

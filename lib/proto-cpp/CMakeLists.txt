@@ -1,0 +1,9 @@
+
+file(GLOB PROTO_FILES "${PROJECT_SOURCE_DIR}/proto/*.proto")
+
+PROTOBUF_GENERATE_CPP(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
+
+add_library(proto ${PROTO_SRCS} ${PROTO_HDRS})
+target_include_directories(proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(proto ${PROTOBUF_LIBRARIES})
+
