@@ -8,7 +8,7 @@
 
 #include "message.hpp"
 #include "bridge.hpp"
-#include "concurrent_queue.hpp"
+#include "util-cpp/concurrent_queue.hpp"
 
 namespace jvs {
 namespace openzwaved {
