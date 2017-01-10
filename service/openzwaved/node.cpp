@@ -6,41 +6,79 @@
 
 #include "node.hpp"
 
-//jvs::openzwaved::Node::Node() : _manager(nullptr), _homeId(0), _nodeId(0), _isActive(false), _lastModifiedTime(time(0)), _deviceData() {}
+jvs::openzwaved::Node::Node(jvs::DeviceManager& deviceManager,
+                            OpenZWave::Manager& zwaveManager,
+                            uint32_t homeId,
+                            uint8_t nodeId) :
+    jvs::Device(deviceManager),
+    _zwaveManager(zwaveManager),
+    _homeId(homeId),
+    _nodeId(nodeId),
+    _isActive(false),
+    _lastModifiedTime(time(0)) {
 
-jvs::openzwaved::Node::Node(OpenZWave::Manager& manager, uint32_t homeId, uint8_t nodeId) :
- _manager(manager), _homeId(homeId), _nodeId(nodeId), _isActive(true), _lastModifiedTime(time(0)), _deviceData() {
-  _deviceData.set_id(std::to_string(nodeId));
-  _deviceData.set_address(std::to_string(nodeId - 1));
+    proto::Device d;
+    d.set_id(std::to_string(_nodeId));
+    d.set_is_active(_isActive);
+    d.set_model_id("");
+    d.set_model_name("");
+    d.set_model_description("");
+    d.set_manufacturer("");
+
+    d.set_address(std::to_string(_homeId) + "/" + std::to_string(_nodeId - 1));
+
+    proto::DeviceConfig* dc = d.mutable_config();
+    assert(dc != nullptr);
+    dc->set_name("");
+    dc->set_description("");
+
+    proto::DeviceState *ds = d.mutable_state();
+    assert(ds != nullptr);
+
+    ds->set_is_reachable(false);
+
+    // We wish to suppress notifications when we create the node.
+    // Being added to the bridge will trigger the necessary notifications.
+    updateSelf(d, true);
 }
 
 void jvs::openzwaved::Node::activate() {
     _isActive = true;
 
-    std::string desc;
-    if (_manager.IsNodeZWavePlus(_homeId, _nodeId)) {
-        desc = _manager.GetNodeDeviceTypeString(_homeId, _nodeId);
-      } else {
-        desc = _manager.GetNodeType(_homeId, _nodeId);
-      }
+    proto::Device d = getDevice();
 
-      proto::DeviceConfig* conf(_deviceData.mutable_config());
-      assert(conf != nullptr);
-      conf->set_description(desc);
+    std::string desc;
+    if (_zwaveManager.IsNodeZWavePlus(_homeId, _nodeId)) {
+        desc = _zwaveManager.GetNodeDeviceTypeString(_homeId, _nodeId);
+    } else {
+        desc = _zwaveManager.GetNodeType(_homeId, _nodeId);
+     }
+
+    proto::DeviceConfig* c = d.mutable_config();
+    assert(c != nullptr);
+    c->set_description(desc);
+
+    // We wish to suppress notifications when we activate the node,
+    /// since the create message will not be sent until after activation succeeds.
+    updateSelf(d, true);
 }
 
-void jvs::openzwaved::Node::processEventMessage(const Message& msg) {
+void jvs::openzwaved::Node::deactivate() {
+    _isActive = false;
+}
+
+void jvs::openzwaved::Node::processZwaveNotification(const OpenZWave::Notification* notification) {
+    assert(notification != nullptr);
     assert(_isActive);
-    assert(msg.event != nullptr);
-    assert(_nodeId == msg.event->GetNodeId());
+    assert(_nodeId == notification->GetNodeId());
 
-    fprintf(stdout, "Node %d handling event: %s\n", _nodeId, msg.event->GetAsString().c_str());
+    fprintf(stdout, "Node %d handling event: %s\n", _nodeId, notification->GetAsString().c_str());
 
-    const OpenZWave::ValueID& id = msg.event->GetValueID();
+    const OpenZWave::ValueID& id = notification->GetValueID();
 
-    switch (msg.event->GetType()) {
+    switch (notification->GetType()) {
         case OpenZWave::Notification::Type_ValueAdded:
-            fprintf(stdout, "Value added on node %d: ", msg.event->GetNodeId());
+            fprintf(stdout, "Value added on node %d: ", _nodeId);
             _valueIds.push_back(id);
 
             processValueId(id);
@@ -51,12 +89,12 @@ void jvs::openzwaved::Node::processEventMessage(const Message& msg) {
             break;
 
         case OpenZWave::Notification::Type_ValueChanged:
-            fprintf(stdout, "Value changed on node %d: ", msg.event->GetNodeId());
+            fprintf(stdout, "Value changed on node %d: ", _nodeId);
             processValueId(id);
             break;
 
         case OpenZWave::Notification::Type_ValueRefreshed:
-            fprintf(stdout, "Value refreshed on node %d: ", msg.event->GetNodeId());
+            fprintf(stdout, "Value refreshed on node %d: ", _nodeId);
             processValueId(id);
             break;
 
@@ -70,33 +108,40 @@ void jvs::openzwaved::Node::processEventMessage(const Message& msg) {
         {
             fprintf(stdout, "Naming\n");
 
-            const std::string name = _manager.GetNodeName(_homeId, _nodeId);
-            const std::string modelName = _manager.GetNodeProductName(_homeId, _nodeId);
-            const std::string modelId = _manager.GetNodeProductType(_homeId, _nodeId);
-            const std::string manufacturer = _manager.GetNodeManufacturerName(_homeId, _nodeId);
+            const std::string name = _zwaveManager.GetNodeName(_homeId, _nodeId);
+            const std::string manufacturer = _zwaveManager.GetNodeManufacturerName(_homeId, _nodeId);
+            const std::string modelId = _zwaveManager.GetNodeProductType(_homeId, _nodeId);
+            const std::string modelName = _zwaveManager.GetNodeProductName(_homeId, _nodeId);
 
-            proto::DeviceConfig* conf(_deviceData.mutable_config());
-            assert(conf != nullptr);
-            conf->set_name(name);
+            proto::Device d = getDevice();
 
-            _deviceData.set_model_id(modelId);
-            _deviceData.set_model_name(modelName);
-            _deviceData.set_manufacturer(manufacturer);
+            proto::DeviceConfig* c = d.mutable_config();
+            assert(c != nullptr);
+            c->set_name(name);
+
+            d.set_model_id(modelId);
+            d.set_model_name(modelName);
+            d.set_manufacturer(manufacturer);
+
+            updateSelf(d);
 
             break;
         }
 
         default:
-            fprintf(stdout, "Unhandled type %d\n", msg.event->GetType());
+            fprintf(stdout, "Unhandled notification type %d\n", notification->GetType());
             assert(false);
     }    
 }
 
 void jvs::openzwaved::Node::processValueId(const OpenZWave::ValueID& id) {
-    proto::DeviceState* state = _deviceData.mutable_state();
+    proto::Device d = getDevice();
+    bool hasDChanged = false;
+
+    proto::DeviceState* state = d.mutable_state();
     assert(state != nullptr);
 
-    std::string label = _manager.GetValueLabel(id);
+    std::string label = _zwaveManager.GetValueLabel(id);
 
     // Light switch with range.
     if (id.GetCommandClassId() == 38) {
@@ -112,9 +157,11 @@ void jvs::openzwaved::Node::processValueId(const OpenZWave::ValueID& id) {
             }
     
             uint8_t val = 0;
-            _manager.GetValueAsByte(id, &val);
+            _zwaveManager.GetValueAsByte(id, &val);
             range->set_value(val);
             binary->set_is_on(val > 0);
+
+            hasDChanged = true;
         }
     } else if (id.GetCommandClassId() == 49) {
         if (id.GetIndex() == 0) {
@@ -127,10 +174,16 @@ void jvs::openzwaved::Node::processValueId(const OpenZWave::ValueID& id) {
             }
 
             bool val;
-            _manager.GetValueAsBool(id, &val);
+            _zwaveManager.GetValueAsBool(id, &val);
             presence->set_is_present(val);
+
+            hasDChanged = true;
         }
         // TODO: add the other sensor values in here.
+    }
+
+    if (hasDChanged) {
+        updateSelf(d);
     }
 
     // TODO: everything below is simply for improved debugging.
@@ -140,35 +193,35 @@ void jvs::openzwaved::Node::processValueId(const OpenZWave::ValueID& id) {
         case OpenZWave::ValueID::ValueType_Bool:
         {
             bool val;
-            _manager.GetValueAsBool(id, &val);
+            _zwaveManager.GetValueAsBool(id, &val);
             fprintf(stdout, " bool %d", val);
             break;
         }
         case OpenZWave::ValueID::ValueType_Byte:
         {
             uint8_t val;
-            _manager.GetValueAsByte(id, &val);
+            _zwaveManager.GetValueAsByte(id, &val);
             fprintf(stdout, " byte %d", val);
             break;
         }
         case OpenZWave::ValueID::ValueType_Decimal:
         {
             float val;
-            _manager.GetValueAsFloat(id, &val);
+            _zwaveManager.GetValueAsFloat(id, &val);
             fprintf(stdout, " float %f", val);
             break;
         }
         case OpenZWave::ValueID::ValueType_Int:
         {
             int val;
-            _manager.GetValueAsInt(id, &val);
+            _zwaveManager.GetValueAsInt(id, &val);
             fprintf(stdout, " int %d", val);
             break;
         }
         case OpenZWave::ValueID::ValueType_List:
         {
             std::vector<std::string> val;
-            _manager.GetValueListItems(id, &val);
+            _zwaveManager.GetValueListItems(id, &val);
             for (size_t i = 0; i < val.size(); i++) {
                 fprintf(stdout, " %s", val[i].c_str());
             }
@@ -177,14 +230,14 @@ void jvs::openzwaved::Node::processValueId(const OpenZWave::ValueID& id) {
         case OpenZWave::ValueID::ValueType_String:
         {
             std::string val;
-            _manager.GetValueAsString(id, &val);
+            _zwaveManager.GetValueAsString(id, &val);
             fprintf(stdout, " %s", val.c_str());
             break;
         }
         case OpenZWave::ValueID::ValueType_Short:
         {
             short val;
-            _manager.GetValueAsShort(id, &val);
+            _zwaveManager.GetValueAsShort(id, &val);
             fprintf(stdout, " %d", val);
             break;
         }
@@ -195,13 +248,31 @@ void jvs::openzwaved::Node::processValueId(const OpenZWave::ValueID& id) {
             fprintf(stdout, "Unhandled type %d", id.GetType());
     }
 
-    std::string units = _manager.GetValueUnits(id);
+    std::string units = _zwaveManager.GetValueUnits(id);
 
     fprintf(stdout, " %s", units.c_str());
 
-    if (_manager.IsValueReadOnly(id)) {
+    if (_zwaveManager.IsValueReadOnly(id)) {
       fprintf(stdout, " readonly");
     }
 
     fprintf(stdout, "\n");
+}
+
+bool jvs::openzwaved::Node::setConfig(proto::DeviceConfig& config) {
+    // TODO: Actually enact changes on the node.
+    proto::Device d = getDevice();
+    d.mutable_config()->CopyFrom(config);
+
+    updateSelf(d);
+    return true;
+}
+
+bool jvs::openzwaved::Node::setState(proto::DeviceState& state) {
+    // TODO: actually enact changes on the node.
+    proto::Device d = getDevice();
+    d.mutable_state()->CopyFrom(state);
+
+    updateSelf(d);
+    return true;
 }

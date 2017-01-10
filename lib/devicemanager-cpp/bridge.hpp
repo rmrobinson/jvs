@@ -8,7 +8,7 @@ class DeviceManager;
 
 class Bridge {
 public:
-    Bridge(DeviceManager& dm) : _dm(dm) {};
+    Bridge(DeviceManager& dm) : _deviceManager(dm) {};
     virtual ~Bridge() {};
 
     inline const std::string& getId() const {
@@ -23,11 +23,11 @@ public:
     virtual bool setConfig(proto::BridgeConfig& config) = 0;
 
 protected:
-    void updateSelf(const proto::Bridge& bridge);
+    void updateSelf(const proto::Bridge& bridge, bool suppressNotification = false);
 
     /// @brief Handle to the managing device manager.
     /// Used to propogate updates back to the watchers.
-    DeviceManager& _dm;
+    DeviceManager& _deviceManager;
 
 private:
     /// @brief The protocol representation of this bridge.

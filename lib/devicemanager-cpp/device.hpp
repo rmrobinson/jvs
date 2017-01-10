@@ -28,7 +28,7 @@ public:
     virtual bool setState(proto::DeviceState& state) = 0;
 
 protected:
-    void updateSelf(const proto::Device& device);
+    void updateSelf(const proto::Device& device, bool suppressNotification = false);
 
 private:
     /// @brief Handle to the managing device manager.

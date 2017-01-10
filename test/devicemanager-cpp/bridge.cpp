@@ -54,12 +54,12 @@ void jvstest::TestBridge::setup(const std::string& id) {
     const int count = dist(gen);
 
     for (int i = 0; i < count; i++) {
-        std::shared_ptr<TestDevice> d = std::make_shared<TestDevice>(_dm);
+        std::shared_ptr<TestDevice> d = std::make_shared<TestDevice>(_deviceManager);
         d->setup(std::to_string(i));
 
         _devices.push_back(d);
 
-        _dm.addDevice(std::shared_ptr<jvs::Device>(d));
+        _deviceManager.addDevice(std::shared_ptr<jvs::Device>(d));
     }
 }
 
@@ -75,9 +75,9 @@ void jvstest::TestBridge::run() {
             i++;
 
             if (i > 10) {
-                _dm.removeDevice(d->getId());
+                _deviceManager.removeDevice(d->getId());
 
-                _dm.addDevice(std::shared_ptr<jvs::Device>(d));
+                _deviceManager.addDevice(std::shared_ptr<jvs::Device>(d));
                 i = 0;
             }
         }

@@ -13,6 +13,7 @@ public:
 
     void randomUpdate();
 
+    // The following functions implement the behaviours of the parent class.
     virtual bool setConfig(proto::DeviceConfig& config) override;
 
     virtual bool setState(proto::DeviceState& state) override;

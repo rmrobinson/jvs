@@ -5,5 +5,5 @@ file(GLOB OPENZWAVED_SRC *.cpp)
 include_directories(${OPENZWAVE_INCLUDE_DIRS})
 
 add_executable(openzwaved ${OPENZWAVED_SRC})
-target_link_libraries(openzwaved proto ${OPENZWAVE_LIBRARIES})
+target_link_libraries(openzwaved devicemanager ${OPENZWAVE_LIBRARIES})
 
