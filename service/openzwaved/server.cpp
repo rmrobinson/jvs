@@ -3,15 +3,12 @@
 
 #include "server.hpp"
 
-jvs::openzwaved::Server::Server() : _manager(nullptr), _options(nullptr), _done(false) {}
+jvs::openzwaved::Server::Server() : _zwaveManager(nullptr), _options(nullptr), _done(false) {}
 
 jvs::openzwaved::Server::~Server() {
 }
 
 void jvs::openzwaved::Server::run(const std::vector<std::string>& devicePaths, const uint16_t port) {
-    // TODO: remove once we add in the gRPC endpoint code.
-    (void)port;
-
     if (devicePaths.size() < 1) {
         return;
     }
@@ -20,15 +17,16 @@ void jvs::openzwaved::Server::run(const std::vector<std::string>& devicePaths, c
     assert (_options != nullptr);
 
     _options->AddOptionBool("ConsoleOutput", false);
-    _options->AddOptionInt("PollInterval", 500);
-    _options->AddOptionBool("IntervalBetweenPolls", true);
-    _options->AddOptionBool("ValidateValueChanges", true);
+    // TODO: It isn't clear these options are needed, but keep for now in case they come in handy.
+    //_options->AddOptionInt("PollInterval", 500);
+    //_options->AddOptionBool("IntervalBetweenPolls", true);
+    //_options->AddOptionBool("ValidateValueChanges", true);
     _options->Lock();
 
-    _manager = OpenZWave::Manager::Create();
-    assert (_manager != nullptr);
+    _zwaveManager = OpenZWave::Manager::Create();
+    assert (_zwaveManager != nullptr);
 
-    _manager->AddWatcher(jvs::openzwaved::Server::onZwaveNotification, this);
+    _zwaveManager->AddWatcher(jvs::openzwaved::Server::onZwaveNotification, this);
 
     for (size_t i = 0; i < devicePaths.size(); i++) {
         const std::string& path = devicePaths[i];
@@ -36,33 +34,23 @@ void jvs::openzwaved::Server::run(const std::vector<std::string>& devicePaths, c
         if (path.length() < 1) {
             continue;
         //} else if (path.find("usb") != std::string::npos) {
-        //    _manager->AddDriver("HID Controller", OpenZWave::Driver::ControllerInterface_Hid);
+        //    _zwaveManager->AddDriver("HID Controller", OpenZWave::Driver::ControllerInterface_Hid);
         } else {
-            _manager->AddDriver(path);
+            _zwaveManager->AddDriver(path);
         }
     }
 
-    // TODO: initialize the gRPC endpoint contained in the devicemanager-cpp library.
+    _deviceManager.start(port);
+
 
     while (!_done) {
-        Message m;
-        _messages.wait_and_pop(m);
-
-        if (m.type == Message::Event) {
-            processEventMessage(m);
-            // TODO: we need to delete the notification, but we'll leak it now since the destructor is private.
-            // delete m.event;
-        } else if (m.type == Message::Shutdown) {
-            fprintf(stdout, "Shutting down\n");
-        } else {
-            fprintf(stdout, "Unknown message\n");
-        }
+        // TODO: we should really be looping somehwere else, this is gross.
     }
 
-    assert(_manager != nullptr);
-    _manager->RemoveWatcher(jvs::openzwaved::Server::onZwaveNotification, nullptr);
+    assert(_zwaveManager != nullptr);
+    _zwaveManager->RemoveWatcher(jvs::openzwaved::Server::onZwaveNotification, nullptr);
 
-    _manager = nullptr;
+    _zwaveManager = nullptr;
     OpenZWave::Manager::Destroy();
 
     _options = nullptr;
@@ -73,55 +61,48 @@ void jvs::openzwaved::Server::run(const std::vector<std::string>& devicePaths, c
 
 void jvs::openzwaved::Server::stop() {
     _done = true;
-
-    Message m;
-    m.type = Message::Shutdown;
-    _messages.push(m);
 }
 
-void jvs::openzwaved::Server::sendMessage(const Message& msg) {
-    if (!_done) {
-        _messages.push(msg);
-    }
-}
-
-void jvs::openzwaved::Server::onZwaveNotification(OpenZWave::Notification const* ozwn, void* context) {
-    assert(ozwn != nullptr);
+void jvs::openzwaved::Server::onZwaveNotification(OpenZWave::Notification const* notification, void* context) {
+    assert(notification != nullptr);
     assert(context != nullptr);
 
     jvs::openzwaved::Server* server = static_cast<jvs::openzwaved::Server*>(context);
+    assert(server != nullptr);
 
-    OpenZWave::Notification* n = new OpenZWave::Notification(*ozwn);
-    assert(n != nullptr);
-
-    Message m;
-    m.type = Message::Event;
-    m.event = n;
-
-    server->sendMessage(m);
+    if (!server->_done) {
+        server->processZwaveNotification(notification);
+    }
 }
 
-void jvs::openzwaved::Server::processEventMessage(const Message& msg) {
-    assert(msg.event != nullptr);
-    assert(_manager != nullptr);
+void jvs::openzwaved::Server::processZwaveNotification(const OpenZWave::Notification* notification) {
+    assert(notification != nullptr);
+    assert(_zwaveManager != nullptr);
+
+    std::unique_lock<std::mutex> lock(_driversMutex);
 
     //const OpenZWave::ValueID& id = msg.event->GetValueID();
 
-    switch (msg.event->GetType()) {
+    switch (notification->GetType()) {
         case OpenZWave::Notification::Type_DriverReset:
-            fprintf(stdout, "Bridge %x reset\n", msg.event->GetHomeId());
+            fprintf(stdout, "Driver %x reset\n", notification->GetHomeId());
 
-            _bridges.erase(msg.event->GetHomeId());
+            _drivers.erase(notification->GetHomeId());
             // We intentionally do not break here so as to go and follow the same flow for creating a bridge.
 
         case OpenZWave::Notification::Type_DriverReady:
         {
-            uint32_t homeId = msg.event->GetHomeId();
-            uint8_t nodeId = msg.event->GetNodeId();
+            uint32_t homeId = notification->GetHomeId();
+            uint8_t nodeId = notification->GetNodeId();
 
-            fprintf(stdout, "Bridge %x created\n", homeId);
+            fprintf(stdout, "Driver %x created\n", homeId);
 
-            _bridges.emplace(homeId, Bridge(*_manager, homeId, nodeId));
+            std::shared_ptr<Driver> d = std::make_shared<Driver>(_deviceManager, *_zwaveManager, homeId, nodeId);
+            assert(d != nullptr);
+
+            _drivers.emplace(homeId, d);
+            _deviceManager.addBridge(std::shared_ptr<jvs::Bridge>(d));
+
             break;
         }
 
@@ -141,14 +122,15 @@ void jvs::openzwaved::Server::processEventMessage(const Message& msg) {
         case OpenZWave::Notification::Type_SceneEvent:
         case OpenZWave::Notification::Type_NodeReset:
         {
-            auto bItr = _bridges.find(msg.event->GetHomeId());
+            auto dItr = _drivers.find(notification->GetHomeId());
 
-            if (bItr == _bridges.end()) {
-                fprintf(stderr, "Received bridge message without bridge existing\n");
+            if (dItr == _drivers.end()) {
+                fprintf(stderr, "Received driver message without driver existing\n");
                 break;
             }
 
-            bItr->second.processEventMessage(msg);
+            assert(dItr->second != nullptr);
+            dItr->second->processZwaveNotification(notification);
             break;
         }
 
@@ -172,7 +154,7 @@ void jvs::openzwaved::Server::processEventMessage(const Message& msg) {
             break;
 
         case OpenZWave::Notification::Type_DriverRemoved:
-            _bridges.erase(msg.event->GetHomeId());
+            _drivers.erase(notification->GetHomeId());
             break;
 
         case OpenZWave::Notification::Type_Notification:
@@ -181,7 +163,7 @@ void jvs::openzwaved::Server::processEventMessage(const Message& msg) {
             break;
 
         default:
-            fprintf(stdout, "Unhandled type %d\n", msg.event->GetType());
+            fprintf(stdout, "Unhandled type %d\n", notification->GetType());
             assert(false);
     }
 

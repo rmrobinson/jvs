@@ -21,7 +21,7 @@ void jvstest::TestDevice::setup(const std::string& id) {
     d.set_model_description("Test Device");
     d.set_manufacturer("Widgets Inc.");
 
-    d.set_address("/devices/" + id);
+    d.set_address("/devices/a" + id);
 
     proto::DeviceConfig* dc = d.mutable_config();
     assert(dc != nullptr);

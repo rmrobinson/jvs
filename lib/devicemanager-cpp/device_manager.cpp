@@ -93,7 +93,7 @@ grpc::Status jvs::DeviceManager::GetDevice(grpc::ServerContext* context,
 
     std::unique_lock<std::mutex> lock(_devicesMutex);
 
-    auto pair = _devices.find(request->id());
+    auto pair = _devices.find(request->address());
   
     if (pair == _devices.end()) {
       return grpc::Status(grpc::StatusCode::NOT_FOUND, "Device does not exist");
@@ -137,7 +137,7 @@ grpc::Status jvs::DeviceManager::SetDeviceConfig(grpc::ServerContext* context,
 
   std::unique_lock<std::mutex> lock(_devicesMutex);
 
-  auto pair = _devices.find(request->id());
+  auto pair = _devices.find(request->address());
   
   if (pair == _devices.end()) {
     return grpc::Status(grpc::StatusCode::NOT_FOUND, "Device does not exist");
@@ -155,7 +155,7 @@ grpc::Status jvs::DeviceManager::SetDeviceConfig(grpc::ServerContext* context,
   bool ret = pair->second->setConfig(c);
 
   if (!ret) {
-      return grpc::Status(grpc::StatusCode::UNKNOWN, "SetConfig call failed");
+      return grpc::Status(grpc::StatusCode::UNKNOWN, "SetDeviceConfig call failed");
   }
 
   response->mutable_device()->mutable_config()->CopyFrom(c);
@@ -172,7 +172,7 @@ grpc::Status jvs::DeviceManager::SetDeviceState(grpc::ServerContext* context,
 
   std::unique_lock<std::mutex> lock(_devicesMutex);
 
-  auto pair = _devices.find(request->id());
+  auto pair = _devices.find(request->address());
   
   if (pair == _devices.end()) {
     return grpc::Status(grpc::StatusCode::NOT_FOUND, "Device does not exist");
@@ -190,7 +190,7 @@ grpc::Status jvs::DeviceManager::SetDeviceState(grpc::ServerContext* context,
   bool ret = pair->second->setState(s);
 
   if (!ret) {
-      return grpc::Status(grpc::StatusCode::UNKNOWN, "SetConfig call failed");
+      return grpc::Status(grpc::StatusCode::UNKNOWN, "SetDeviceState call failed");
   }
 
   response->mutable_device()->mutable_state()->CopyFrom(s);
@@ -249,7 +249,7 @@ void jvs::DeviceManager::removeBridge(const std::string& id) {
 
 void jvs::DeviceManager::addDevice(std::shared_ptr<Device> device) {
   std::unique_lock<std::mutex> lock(_devicesMutex);
-  _devices.emplace(device->getId(), device);
+  _devices.emplace(device->getAddress(), device);
 
   proto::WatchDevicesResponse notification;
   notification.set_action(proto::WatchDevicesResponse::ADDED);
@@ -258,10 +258,10 @@ void jvs::DeviceManager::addDevice(std::shared_ptr<Device> device) {
   broadcast(notification);
 }
 
-void jvs::DeviceManager::removeDevice(const std::string& id) {
+void jvs::DeviceManager::removeDevice(const std::string& address) {
   std::unique_lock<std::mutex> lock(_devicesMutex);
 
-  auto pair = _devices.find(id);
+  auto pair = _devices.find(address);
   
   if (pair == _devices.end()) {
     return;
@@ -273,7 +273,7 @@ void jvs::DeviceManager::removeDevice(const std::string& id) {
   notification.set_action(proto::WatchDevicesResponse::REMOVED);
   notification.mutable_device()->CopyFrom(pair->second->getDevice());
 
-  _devices.erase(id);
+  _devices.erase(address);
 
   broadcast(notification);
 }

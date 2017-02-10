@@ -15,6 +15,10 @@ public:
       return _device.id();
     }
 
+    inline const std::string& getAddress() const {
+      return _device.address();
+    }
+
     inline const std::string& getVersion() const {
       return _device.state().version();
     }
@@ -28,7 +32,7 @@ public:
     virtual bool setState(proto::DeviceState& state) = 0;
 
 protected:
-    void updateSelf(const proto::Device& device);
+    void updateSelf(const proto::Device& device, bool suppressNotification = false);
 
 private:
     /// @brief Handle to the managing device manager.
