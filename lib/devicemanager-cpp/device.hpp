@@ -15,6 +15,10 @@ public:
       return _device.id();
     }
 
+    inline const std::string& getAddress() const {
+      return _device.address();
+    }
+
     inline const std::string& getVersion() const {
       return _device.state().version();
     }

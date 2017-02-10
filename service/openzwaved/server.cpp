@@ -17,9 +17,10 @@ void jvs::openzwaved::Server::run(const std::vector<std::string>& devicePaths, c
     assert (_options != nullptr);
 
     _options->AddOptionBool("ConsoleOutput", false);
-    _options->AddOptionInt("PollInterval", 500);
-    _options->AddOptionBool("IntervalBetweenPolls", true);
-    _options->AddOptionBool("ValidateValueChanges", true);
+    // TODO: It isn't clear these options are needed, but keep for now in case they come in handy.
+    //_options->AddOptionInt("PollInterval", 500);
+    //_options->AddOptionBool("IntervalBetweenPolls", true);
+    //_options->AddOptionBool("ValidateValueChanges", true);
     _options->Lock();
 
     _zwaveManager = OpenZWave::Manager::Create();
@@ -43,14 +44,7 @@ void jvs::openzwaved::Server::run(const std::vector<std::string>& devicePaths, c
 
 
     while (!_done) {
-        Message m;
-        _messages.wait_and_pop(m);
-
-        if (m.type == Message::Shutdown) {
-            fprintf(stdout, "Shutting down\n");
-        } else {
-            fprintf(stdout, "Unknown message\n");
-        }
+        // TODO: we should really be looping somehwere else, this is gross.
     }
 
     assert(_zwaveManager != nullptr);
@@ -67,16 +61,6 @@ void jvs::openzwaved::Server::run(const std::vector<std::string>& devicePaths, c
 
 void jvs::openzwaved::Server::stop() {
     _done = true;
-
-    Message m;
-    m.type = Message::Shutdown;
-    _messages.push(m);
-}
-
-void jvs::openzwaved::Server::sendMessage(const Message& msg) {
-    if (!_done) {
-        _messages.push(msg);
-    }
 }
 
 void jvs::openzwaved::Server::onZwaveNotification(OpenZWave::Notification const* notification, void* context) {

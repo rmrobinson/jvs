@@ -66,7 +66,7 @@ public:
     void removeBridge(const std::string& id);
 
     void addDevice(std::shared_ptr<Device> device);
-    void removeDevice(const std::string& id);
+    void removeDevice(const std::string& address);
 
     void start(uint16_t port);
 
@@ -80,7 +80,11 @@ private:
     /// @brief Serializes accesses to the _bridges collection.
     mutable std::mutex _bridgesMutex;
 
-    /// @brief The collection of registered devices, keyed by their IDs.
+    /// @brief The collection of registered devices, keyed by the device address.
+    /// It is up to the implementation to prevent collections between device addresss
+    /// with the same internal IDs, i.e. by prepending the bridge ID and a delimiter
+    /// to any internal IDs.
+    /// A simple exmaple would be <bridgeAddress>/<deviceId>
     std::unordered_map<std::string, std::shared_ptr<Device> > _devices;
     /// @brief Serializes access to the _devices collection.
     mutable std::mutex _devicesMutex;

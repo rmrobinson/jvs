@@ -115,7 +115,7 @@ message GetDevicesResponse {
 }
 
 message GetDeviceRequest {
-    string id = 1;
+    string address = 1;
 }
 message GetDeviceResponse {
     Device device = 1;
@@ -136,7 +136,7 @@ message WatchDevicesResponse {
 }
 
 message SetDeviceConfigRequest {
-    string id = 1;
+    string address = 1;
     string version = 2;
     DeviceConfig config = 10;
 }
@@ -146,7 +146,7 @@ message SetDeviceConfigResponse {
 }
 
 message SetDeviceStateRequest {
-    string id = 1;
+    string address = 1;
     string version = 2;
     DeviceState state = 10;
 }
