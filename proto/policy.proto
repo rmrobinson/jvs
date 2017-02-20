@@ -1,0 +1,160 @@
+syntax = "proto3";
+
+import "google/protobuf/any.proto";
+
+import "user.proto";
+
+package proto;
+
+message ExecutionContext {
+  // The context of the user executing the policy which is currently active.
+  // Should allow the action to perform operations on other endpoints.
+  User user = 1;
+
+  // The time this condition was triggered.
+  uint64 triggered_at = 2;
+
+  enum Priority {
+    HIGH = 0;
+    MEDIUM = 1;
+    LOW = 2;
+  }
+
+  // A potential option for us to filter low-priority things?
+  Priority priority = 3;
+
+
+  // Generic object to store things.
+  // TODO: how do we set context?
+  map<string, string> context = 100;
+}
+
+message Condition {
+  enum LogicalOperator {
+    AND = 0;
+    OR = 1;
+  }
+
+  enum ComparisonOperator {
+    EQUALS = 0;
+    NOT_EQUALS = 1;
+    GREATER_THAN = 2;
+    GREATHER_THAN_EQUALS_TO = 3;
+    LESS_THAN = 4;
+    LESS_THAN_EQUALS_TO = 5;
+    CONTAINS = 10; // Do we want string-specific checks?
+  }
+  
+  LogicalOperator operator = 1;
+  repeated Condition conditions = 2;
+
+  // This will define which objects the condition will apply to.
+  // For example, this could be a Device message.
+  google.protobuf.Any target = 10;
+
+  // This will be one of the various <x> messages defined elsewhere.
+  // Strictly speaking, it should be either an object of type target, above,
+  // or a child object of this object.
+  // For example, this could be a DeviceState message.
+  google.protobuf.Any check = 11;
+
+  // This will define how we will evaluate the properties in check which are set
+  // with the current state of the object.
+  // For example, if check is a DeviceState message and both isOn and level are set,
+  // we will enforce that the current state of the target device satisfies whichever
+  // comparison operator is specified on both isOn and level.
+  // If the type is one which doesn't fit into the comparison, i.e. a boolean can't
+  // be greater than a boolean, we'll fall back to equality rules.
+  // Be careful if check is likely to include floats; equality is likely not what is desired.
+  ComparisonOperator comparison = 12;
+}
+
+message Action {
+  // This will be one of the various Set<x>Request messages defined elsewhere.
+  google.protobuf.Any command = 10;
+  // This will likely be an <x> message, where x corresponds to the x in the command.
+  // For example, the command could be SetDeviceStateRequest message
+  // wth the context being a DeviceState message.
+  google.protobuf.Any context = 11;
+}
+
+message Policy {
+  // Each policy should have a unique ID.
+  string id = 1;
+  // Whether the policy is currently active (only applies to persisten policies).
+  bool is_active = 2;
+  // An ordering field to resolve execution order rissues.
+  int32 order = 3;
+
+  enum Type {
+    TRANSIENT = 0;
+    PERSISTENT = 1;
+  }
+
+  // The type of execution behaviour to expect.
+  // Transient policies will execute the actions then wait for the next time
+  // these conditions to be met before triggering again.
+  // Persistent policies will remain active until conditions are no longer met.
+  // Note: if the policy is reloaded and a transient condition meets it's conditions,
+  // the actions will be executed again.
+  Type type = 4;
+
+  // The set of conditions which must be met prior to execution.
+  Condition conditions = 10;
+  // The collection of actions to execute when the policy is activated.
+  repeated Action actions = 11;
+
+  map<string, string> context = 12;
+}
+
+message GetPoliciesRequest {
+}
+message GetPoliciesResponse {
+    repeated Policy policies = 1;
+}
+
+message GetPolicyRequest {
+  string id = 1;
+}
+message GetPolicyResponse {
+  string id = 1;
+  Policy policy = 2;
+}
+
+message AddPolicyRequest {
+  Policy policy = 1;
+}
+message AddPolicyResponse {
+  Policy policy = 1;
+}
+
+message RemovePolicyRequest {
+  string id = 1;
+}
+message RemovePolicyResponse {
+}
+
+message WatchPoliciesRequest {
+}
+message WatchPoliciesResponse {
+  enum Action {
+    ADDED = 0;
+    CHANGED = 1;
+    REMOVED = 2;
+  }
+
+  Action action = 1;
+  Policy policy = 2;
+}
+
+service PolicyManager {
+  rpc GetPolicies(GetPoliciesRequest) returns (GetPoliciesResponse) {}
+
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {}
+
+  rpc AddPolicy(AddPolicyRequest) returns (AddPolicyResponse) {}
+
+  rpc RemovePolicy(RemovePolicyRequest) returns (RemovePolicyResponse) {}
+
+  rpc WatchPolicies(WatchPoliciesRequest) returns (stream WatchPoliciesResponse) {}
+}

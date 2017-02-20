@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package proto;
+
+message LatLong {
+  float latitude = 1;
+  float longitude = 2;
+}
+
+message Error {
+  enum Type {
+    UNKNOWN = 0;
+
+  }
+
+  Type type = 1;
+  string message = 2;
+  string details = 3;
+}
