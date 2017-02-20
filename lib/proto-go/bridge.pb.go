@@ -2,40 +2,6 @@
 // source: bridge.proto
 // DO NOT EDIT!
 
-/*
-Package proto is a generated protocol buffer package.
-
-It is generated from these files:
-	bridge.proto
-	device.proto
-	version.proto
-
-It has these top-level messages:
-	Address
-	BridgeState
-	BridgeConfig
-	BridgeSwUpdate
-	Bridge
-	GetBridgesRequest
-	GetBridgesResponse
-	WatchBridgesRequest
-	WatchBridgesResponse
-	DeviceConfig
-	DeviceState
-	Device
-	GetDevicesRequest
-	GetDevicesResponse
-	GetDeviceRequest
-	GetDeviceResponse
-	WatchDevicesRequest
-	WatchDevicesResponse
-	SetDeviceConfigRequest
-	SetDeviceConfigResponse
-	SetDeviceStateRequest
-	SetDeviceStateResponse
-	VersionRequest
-	VersionResponse
-*/
 package proto
 
 import proto1 "github.com/golang/protobuf/proto"
@@ -51,12 +17,6 @@ import (
 var _ = proto1.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
-
-// This is a compile-time assertion to ensure that this generated file
-// is compatible with the proto package it is being compiled against.
-// A compilation error at this line likely means your copy of the
-// proto package needs to be updated.
-const _ = proto1.ProtoPackageIsVersion2 // please upgrade the proto package
 
 type WatchBridgesResponse_Action int32
 
@@ -81,7 +41,7 @@ func (x WatchBridgesResponse_Action) String() string {
 	return proto1.EnumName(WatchBridgesResponse_Action_name, int32(x))
 }
 func (WatchBridgesResponse_Action) EnumDescriptor() ([]byte, []int) {
-	return fileDescriptor0, []int{8, 0}
+	return fileDescriptor1, []int{8, 0}
 }
 
 type Address struct {
@@ -92,7 +52,7 @@ type Address struct {
 func (m *Address) Reset()                    { *m = Address{} }
 func (m *Address) String() string            { return proto1.CompactTextString(m) }
 func (*Address) ProtoMessage()               {}
-func (*Address) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (*Address) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
 
 func (m *Address) GetIp() *Address_Ip {
 	if m != nil {
@@ -118,7 +78,7 @@ type Address_Ip struct {
 func (m *Address_Ip) Reset()                    { *m = Address_Ip{} }
 func (m *Address_Ip) String() string            { return proto1.CompactTextString(m) }
 func (*Address_Ip) ProtoMessage()               {}
-func (*Address_Ip) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0, 0} }
+func (*Address_Ip) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0, 0} }
 
 type Address_Usb struct {
 	Path string `protobuf:"bytes,1,opt,name=path" json:"path,omitempty"`
@@ -127,7 +87,7 @@ type Address_Usb struct {
 func (m *Address_Usb) Reset()                    { *m = Address_Usb{} }
 func (m *Address_Usb) String() string            { return proto1.CompactTextString(m) }
 func (*Address_Usb) ProtoMessage()               {}
-func (*Address_Usb) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0, 1} }
+func (*Address_Usb) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0, 1} }
 
 type BridgeState struct {
 	IsPaired bool                 `protobuf:"varint,1,opt,name=is_paired,json=isPaired" json:"is_paired,omitempty"`
@@ -139,7 +99,7 @@ type BridgeState struct {
 func (m *BridgeState) Reset()                    { *m = BridgeState{} }
 func (m *BridgeState) String() string            { return proto1.CompactTextString(m) }
 func (*BridgeState) ProtoMessage()               {}
-func (*BridgeState) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
+func (*BridgeState) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
 
 func (m *BridgeState) GetVersion() *BridgeState_Version {
 	if m != nil {
@@ -170,7 +130,7 @@ type BridgeState_Version struct {
 func (m *BridgeState_Version) Reset()                    { *m = BridgeState_Version{} }
 func (m *BridgeState_Version) String() string            { return proto1.CompactTextString(m) }
 func (*BridgeState_Version) ProtoMessage()               {}
-func (*BridgeState_Version) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1, 0} }
+func (*BridgeState_Version) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1, 0} }
 
 type BridgeState_Zigbee struct {
 	Channel int32 `protobuf:"varint,1,opt,name=channel" json:"channel,omitempty"`
@@ -179,7 +139,7 @@ type BridgeState_Zigbee struct {
 func (m *BridgeState_Zigbee) Reset()                    { *m = BridgeState_Zigbee{} }
 func (m *BridgeState_Zigbee) String() string            { return proto1.CompactTextString(m) }
 func (*BridgeState_Zigbee) ProtoMessage()               {}
-func (*BridgeState_Zigbee) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1, 1} }
+func (*BridgeState_Zigbee) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1, 1} }
 
 type BridgeState_Zwave struct {
 	HomeId string `protobuf:"bytes,1,opt,name=homeId" json:"homeId,omitempty"`
@@ -189,7 +149,7 @@ type BridgeState_Zwave struct {
 func (m *BridgeState_Zwave) Reset()                    { *m = BridgeState_Zwave{} }
 func (m *BridgeState_Zwave) String() string            { return proto1.CompactTextString(m) }
 func (*BridgeState_Zwave) ProtoMessage()               {}
-func (*BridgeState_Zwave) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1, 2} }
+func (*BridgeState_Zwave) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1, 2} }
 
 type BridgeConfig struct {
 	Name     string   `protobuf:"bytes,1,opt,name=name" json:"name,omitempty"`
@@ -200,7 +160,7 @@ type BridgeConfig struct {
 func (m *BridgeConfig) Reset()                    { *m = BridgeConfig{} }
 func (m *BridgeConfig) String() string            { return proto1.CompactTextString(m) }
 func (*BridgeConfig) ProtoMessage()               {}
-func (*BridgeConfig) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
+func (*BridgeConfig) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
 
 func (m *BridgeConfig) GetAddress() *Address {
 	if m != nil {
@@ -219,7 +179,7 @@ type BridgeSwUpdate struct {
 func (m *BridgeSwUpdate) Reset()                    { *m = BridgeSwUpdate{} }
 func (m *BridgeSwUpdate) String() string            { return proto1.CompactTextString(m) }
 func (*BridgeSwUpdate) ProtoMessage()               {}
-func (*BridgeSwUpdate) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
+func (*BridgeSwUpdate) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
 
 type Bridge struct {
 	Id               string        `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
@@ -236,7 +196,7 @@ type Bridge struct {
 func (m *Bridge) Reset()                    { *m = Bridge{} }
 func (m *Bridge) String() string            { return proto1.CompactTextString(m) }
 func (*Bridge) ProtoMessage()               {}
-func (*Bridge) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+func (*Bridge) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{4} }
 
 func (m *Bridge) GetConfig() *BridgeConfig {
 	if m != nil {
@@ -258,7 +218,7 @@ type GetBridgesRequest struct {
 func (m *GetBridgesRequest) Reset()                    { *m = GetBridgesRequest{} }
 func (m *GetBridgesRequest) String() string            { return proto1.CompactTextString(m) }
 func (*GetBridgesRequest) ProtoMessage()               {}
-func (*GetBridgesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+func (*GetBridgesRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{5} }
 
 type GetBridgesResponse struct {
 	Bridges []*Bridge `protobuf:"bytes,1,rep,name=bridges" json:"bridges,omitempty"`
@@ -267,7 +227,7 @@ type GetBridgesResponse struct {
 func (m *GetBridgesResponse) Reset()                    { *m = GetBridgesResponse{} }
 func (m *GetBridgesResponse) String() string            { return proto1.CompactTextString(m) }
 func (*GetBridgesResponse) ProtoMessage()               {}
-func (*GetBridgesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+func (*GetBridgesResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{6} }
 
 func (m *GetBridgesResponse) GetBridges() []*Bridge {
 	if m != nil {
@@ -282,7 +242,7 @@ type WatchBridgesRequest struct {
 func (m *WatchBridgesRequest) Reset()                    { *m = WatchBridgesRequest{} }
 func (m *WatchBridgesRequest) String() string            { return proto1.CompactTextString(m) }
 func (*WatchBridgesRequest) ProtoMessage()               {}
-func (*WatchBridgesRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+func (*WatchBridgesRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{7} }
 
 type WatchBridgesResponse struct {
 	Action WatchBridgesResponse_Action `protobuf:"varint,1,opt,name=action,enum=proto.WatchBridgesResponse_Action" json:"action,omitempty"`
@@ -292,7 +252,7 @@ type WatchBridgesResponse struct {
 func (m *WatchBridgesResponse) Reset()                    { *m = WatchBridgesResponse{} }
 func (m *WatchBridgesResponse) String() string            { return proto1.CompactTextString(m) }
 func (*WatchBridgesResponse) ProtoMessage()               {}
-func (*WatchBridgesResponse) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{8} }
+func (*WatchBridgesResponse) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{8} }
 
 func (m *WatchBridgesResponse) GetBridge() *Bridge {
 	if m != nil {
@@ -449,12 +409,12 @@ var _BridgeManager_serviceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: fileDescriptor0,
+	Metadata: fileDescriptor1,
 }
 
-func init() { proto1.RegisterFile("bridge.proto", fileDescriptor0) }
+func init() { proto1.RegisterFile("bridge.proto", fileDescriptor1) }
 
-var fileDescriptor0 = []byte{
+var fileDescriptor1 = []byte{
 	// 792 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0x7c, 0x54, 0xc1, 0x6e, 0xdb, 0x38,
 	0x10, 0x8d, 0xec, 0xb5, 0x64, 0x8f, 0x1d, 0x23, 0x61, 0xb2, 0x0b, 0x59, 0xc1, 0x62, 0x13, 0x61,
