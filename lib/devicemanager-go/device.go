@@ -113,7 +113,7 @@ func (m *Manager) GetDevice(ctx context.Context, req *proto.GetDeviceRequest) (*
 		}
 
 		for _, device := range bImpl.devices {
-			if device.Id != req.Id {
+			if device.Address != req.Address {
 				continue
 			}
 
@@ -165,7 +165,7 @@ func (m *Manager) SetDeviceState(ctx context.Context, req *proto.SetDeviceStateR
 		}
 
 		for dIdx, device := range bImpl.devices {
-			if device.Id != req.Id {
+			if device.Address != req.Address {
 				continue
 			}
 
@@ -197,7 +197,7 @@ func (m *Manager) SetDeviceConfig(ctx context.Context, req *proto.SetDeviceConfi
 		}
 
 		for dIdx, device := range bImpl.devices {
-			if device.Id != req.Id {
+			if device.Address != req.Address {
 				continue
 			}
 

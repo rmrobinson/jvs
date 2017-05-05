@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package proto;
+
+message Message {
+    string id = 1;
+
+    string user = 2;
+
+    string contents = 3;
+}
+
+message SendMessageRequest {
+    Message message = 1;
+}
+message SendMessageResponse {
+    string error = 1;
+    Message message = 2;
+}
+
+message WatchMessagesRequest {
+}
+message WatchMessagesResponse {
+    Message message = 1;
+}
+
+service MessageManager {
+    rpc SendMessage(SendMessageRequest) returns (SendMessageResponse) {}
+
+    rpc WatchMessages(WatchMessagesRequest) returns (stream WatchMessagesResponse) {}
+}

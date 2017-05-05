@@ -8,6 +8,7 @@ Package proto is a generated protocol buffer package.
 It is generated from these files:
 	bridge.proto
 	device.proto
+	message.proto
 	version.proto
 
 It has these top-level messages:
@@ -33,6 +34,11 @@ It has these top-level messages:
 	SetDeviceConfigResponse
 	SetDeviceStateRequest
 	SetDeviceStateResponse
+	Message
+	SendMessageRequest
+	SendMessageResponse
+	WatchMessagesRequest
+	WatchMessagesResponse
 	VersionRequest
 	VersionResponse
 */

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"faltung.ca/jvs/lib/deviceclient-go"
 	"faltung.ca/jvs/lib/proto-go"
 	"github.com/abiosoft/ishell"
 )
@@ -11,13 +12,13 @@ import (
 type shell struct {
 	handle *ishell.Shell
 
-	conns []conn
+	conns []deviceclient_go.Conn
 }
 
 func newShell() shell {
 	return shell{
 		handle: ishell.New(),
-		conns:  make([]conn, 8),
+		conns:  make([]deviceclient_go.Conn, 8),
 	}
 }
 
@@ -35,7 +36,7 @@ func (s *shell) registerConnCommands() {
 				return
 			}
 
-			c, err2 := connect(args[1])
+			c, err2 := deviceclient_go.Connect(args[1])
 
 			if err2 != nil {
 				err = err2
@@ -51,11 +52,11 @@ func (s *shell) registerConnCommands() {
 			}
 
 			for idx, conn := range s.conns {
-				if conn.addr != args[1] {
+				if conn.Addr != args[1] {
 					continue
 				}
 
-				conn.close()
+				conn.Close()
 
 				// Remove from list
 				s.conns = append(s.conns[:idx], s.conns[idx+1:]...)
@@ -65,13 +66,13 @@ func (s *shell) registerConnCommands() {
 			ret = "Active connections\n"
 			found := false
 			for _, conn := range s.conns {
-				if conn.conn != nil {
+				if conn.Conn != nil {
 					if found {
 						ret += "\n"
 					}
 
 					found = true
-					ret += conn.addr
+					ret += conn.Addr
 				}
 			}
 
@@ -96,7 +97,7 @@ func (s *shell) registerBridgeCommands() {
 
 		switch args[0] {
 		case "list":
-			ret, err = listBridges(s.conns)
+			ret, err = deviceclient_go.ListBridges(s.conns)
 
 		case "watch":
 			if len(args) < 2 {
@@ -106,10 +107,10 @@ func (s *shell) registerBridgeCommands() {
 
 			switch args[1] {
 			case "start":
-				watchBridges(s.conns)
+				deviceclient_go.WatchBridges(s.conns)
 				ret = "Ok"
 			case "stop":
-				stopWatchBridges(s.conns)
+				deviceclient_go.StopWatchBridges(s.conns)
 				ret = "Ok"
 			default:
 				ret = "Unknown argument"
@@ -132,7 +133,7 @@ func (s *shell) registerDeviceCommands() {
 
 		switch args[0] {
 		case "list":
-			ret, err = listDevices(s.conns)
+			ret, err = deviceclient_go.ListDevices(s.conns)
 
 		case "watch":
 			if len(args) < 2 {
@@ -142,10 +143,10 @@ func (s *shell) registerDeviceCommands() {
 
 			switch args[1] {
 			case "start":
-				watchDevices(s.conns)
+				deviceclient_go.WatchDevices(s.conns)
 				ret = "Ok"
 			case "stop":
-				stopWatchDevices(s.conns)
+				deviceclient_go.StopWatchDevices(s.conns)
 				ret = "Ok"
 			default:
 				ret = "Unknown argument"
@@ -168,7 +169,7 @@ func (s *shell) registerDeviceCommands() {
 		switch args[1] {
 		case "get":
 			var d proto.Device
-			d, err = getDevice(s.conns, id)
+			d, err = deviceclient_go.GetDevice(s.conns, id)
 
 			if err != nil {
 				return
@@ -190,7 +191,7 @@ func (s *shell) registerDeviceCommands() {
 				}
 
 				var device proto.Device
-				device, err = getDevice(s.conns, id)
+				device, err = deviceclient_go.GetDevice(s.conns, id)
 
 				if err != nil {
 					return
@@ -276,7 +277,7 @@ func (s *shell) registerDeviceCommands() {
 					return
 				}
 
-				_, err = setDeviceState(s.conns, id, state)
+				_, err = deviceclient_go.SetDeviceState(s.conns, id, state)
 
 				ret = "Ok"
 

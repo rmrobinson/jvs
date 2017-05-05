@@ -1,4 +1,4 @@
-package main
+package deviceclient_go
 
 import (
 	"errors"
@@ -9,15 +9,15 @@ import (
 	"log"
 )
 
-func listBridges(conns []conn) (ret string, err error) {
+func ListBridges(conns []Conn) (ret string, err error) {
 	ret = ""
 
 	for _, conn := range conns {
-		if conn.conn == nil {
+		if conn.Conn == nil {
 			continue
 		}
 
-		resp, err2 := conn.bridgeClient.GetBridges(context.Background(), &proto.GetBridgesRequest{})
+		resp, err2 := conn.BridgeClient.GetBridges(context.Background(), &proto.GetBridgesRequest{})
 		if err2 != nil {
 			err = err2
 			return
@@ -31,17 +31,17 @@ func listBridges(conns []conn) (ret string, err error) {
 	return
 }
 
-func watchBridges(conns []conn) {
+func WatchBridges(conns []Conn) {
 	for idx, conn := range conns {
-		if conn.conn == nil || conn.cancelBridgeWatcher != nil {
+		if conn.Conn == nil || conn.cancelBridgeWatcher != nil {
 			continue
 		}
 
 		cancelConn, cancelConnFunc := context.WithCancel(context.Background())
 		conns[idx].cancelBridgeWatcher = cancelConnFunc
 
-		fmt.Printf("Watching bridges on %s\n", conn.addr)
-		stream, err := conn.bridgeClient.WatchBridges(cancelConn, &proto.WatchBridgesRequest{})
+		fmt.Printf("Watching bridges on %s\n", conn.Addr)
+		stream, err := conn.BridgeClient.WatchBridges(cancelConn, &proto.WatchBridgesRequest{})
 
 		if err != nil {
 			return
@@ -63,9 +63,9 @@ func watchBridges(conns []conn) {
 	}
 }
 
-func stopWatchBridges(conns []conn) {
+func StopWatchBridges(conns []Conn) {
 	for idx, conn := range conns {
-		if conn.conn == nil || conn.cancelBridgeWatcher == nil {
+		if conn.Conn == nil || conn.cancelBridgeWatcher == nil {
 			continue
 		}
 
@@ -74,15 +74,15 @@ func stopWatchBridges(conns []conn) {
 	}
 }
 
-func listDevices(conns []conn) (ret string, err error) {
+func ListDevices(conns []Conn) (ret string, err error) {
 	ret = ""
 
 	for _, conn := range conns {
-		if conn.conn == nil {
+		if conn.Conn == nil {
 			continue
 		}
 
-		resp, err2 := conn.deviceClient.GetDevices(context.Background(), &proto.GetDevicesRequest{})
+		resp, err2 := conn.DeviceClient.GetDevices(context.Background(), &proto.GetDevicesRequest{})
 		if err2 != nil {
 			err = err2
 			return
@@ -96,17 +96,17 @@ func listDevices(conns []conn) (ret string, err error) {
 	return
 }
 
-func watchDevices(conns []conn) {
+func WatchDevices(conns []Conn) {
 	for idx, conn := range conns {
-		if conn.conn == nil || conn.cancelDeviceWatcher != nil {
+		if conn.Conn == nil || conn.cancelDeviceWatcher != nil {
 			continue
 		}
 
 		cancelConn, cancelConnFunc := context.WithCancel(context.Background())
 		conns[idx].cancelDeviceWatcher = cancelConnFunc
 
-		fmt.Printf("Watching devices on %s\n", conn.addr)
-		stream, err := conn.deviceClient.WatchDevices(cancelConn, &proto.WatchDevicesRequest{})
+		fmt.Printf("Watching devices on %s\n", conn.Addr)
+		stream, err := conn.DeviceClient.WatchDevices(cancelConn, &proto.WatchDevicesRequest{})
 
 		if err != nil {
 			return
@@ -128,9 +128,9 @@ func watchDevices(conns []conn) {
 	}
 }
 
-func stopWatchDevices(conns []conn) {
+func StopWatchDevices(conns []Conn) {
 	for idx, conn := range conns {
-		if conn.conn == nil || conn.cancelDeviceWatcher == nil {
+		if conn.Conn == nil || conn.cancelDeviceWatcher == nil {
 			continue
 		}
 
@@ -139,15 +139,15 @@ func stopWatchDevices(conns []conn) {
 	}
 }
 
-func getDevice(conns []conn, id string) (ret proto.Device, err error) {
+func GetDevice(conns []Conn, id string) (ret proto.Device, err error) {
 	ret = proto.Device{}
 
 	for _, conn := range conns {
-		if conn.conn == nil {
+		if conn.Conn == nil {
 			continue
 		}
 
-		resp, err2 := conn.deviceClient.GetDevice(context.Background(), &proto.GetDeviceRequest{
+		resp, err2 := conn.DeviceClient.GetDevice(context.Background(), &proto.GetDeviceRequest{
 			Id: id,
 		})
 		if err2 != nil {
@@ -163,7 +163,7 @@ func getDevice(conns []conn, id string) (ret proto.Device, err error) {
 	return
 }
 
-func setDeviceState(conns []conn, id string, state proto.DeviceState) (ret proto.Device, err error) {
+func SetDeviceState(conns []Conn, id string, state proto.DeviceState) (ret proto.Device, err error) {
 	ret = proto.Device{}
 
 	for _, conn := range conns {
@@ -171,7 +171,7 @@ func setDeviceState(conns []conn, id string, state proto.DeviceState) (ret proto
 			continue
 		}
 
-		resp, err2 := conn.deviceClient.SetDeviceState(context.Background(), &proto.SetDeviceStateRequest{
+		resp, err2 := conn.DeviceClient.SetDeviceState(context.Background(), &proto.SetDeviceStateRequest{
 			Id:    id,
 			State: &state,
 		})
