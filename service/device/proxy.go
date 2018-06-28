@@ -18,8 +18,8 @@ var (
 // ProxyBridge is a bridge implementation that proxies requests to a specified bridge service.
 type ProxyBridge struct {
 	// TODO: use a logger
-	bn bridgeNotifier
-	c  pb.BridgeManagerClient
+	bn     bridgeNotifier
+	remote pb.BridgeManagerClient
 
 	state *pb.Bridge
 }
@@ -49,8 +49,8 @@ func SetupNewProxyBridge(config *pb.BridgeConfig, notifier bridgeNotifier) (*Pro
 // NewProxyBridge creates a bridge implementation from a supplied bridge client.
 func NewProxyBridge(notifier bridgeNotifier, id string, client pb.BridgeManagerClient) *ProxyBridge {
 	ret := &ProxyBridge{
-		bn: notifier,
-		c:  client,
+		bn:     notifier,
+		remote: client,
 		state: &pb.Bridge{
 			Id: id,
 		},
@@ -63,52 +63,58 @@ func NewProxyBridge(notifier bridgeNotifier, id string, client pb.BridgeManagerC
 	return ret
 }
 
-func (p *ProxyBridge) ID() string {
-	return p.state.Id
+func (b *ProxyBridge) ID() string {
+	return b.state.Id
 }
 
-func (p *ProxyBridge) ModelID() string {
-	return p.state.ModelId
+func (b *ProxyBridge) ModelID() string {
+	return b.state.ModelId
 }
-func (p *ProxyBridge) ModelName() string {
-	return p.state.ModelName
+func (b *ProxyBridge) ModelName() string {
+	return b.state.ModelName
 }
-func (p *ProxyBridge) ModelDescription() string {
-	return p.state.ModelDescription
+func (b *ProxyBridge) ModelDescription() string {
+	return b.state.ModelDescription
 }
-func (p *ProxyBridge) Manufacturer() string {
-	return p.state.Manufacturer
+func (b *ProxyBridge) Manufacturer() string {
+	return b.state.Manufacturer
 }
-func (p *ProxyBridge) IconURLs() []string {
-	return p.state.IconUrl
+func (b *ProxyBridge) IconURLs() []string {
+	return b.state.IconUrl
 }
-func (p *ProxyBridge) Name() string {
-	return p.state.Config.Name
+func (b *ProxyBridge) Name() string {
+	return b.state.Config.Name
 }
-func (p *ProxyBridge) SetName(name string) error {
+func (b *ProxyBridge) SetName(name string) error {
 	return errors.New("not implemented")
 }
 
-func (p *ProxyBridge) stateMonitor() {
-	stream, err := p.c.WatchBridges(context.Background(), &pb.WatchBridgesRequest{})
+func (b *ProxyBridge) Devices() ([]pb.Device, error) {
+	devices := []pb.Device{}
+	return devices, nil
+}
+
+
+func (b *ProxyBridge) stateMonitor() {
+	stream, err := b.remote.WatchBridges(context.Background(), &pb.WatchBridgesRequest{})
 
 	if err != nil {
 		return
 	}
 
-	log.Printf("Waiting for updates about bridge ID %s\n", p.state.Id)
+	log.Printf("Waiting for updates about bridge ID %s\n", b.state.Id)
 
 	for {
 		if update, err := stream.Recv(); err == nil {
 			// Filter out updates we don't care about
-			if update.Bridge.Id != p.state.Id {
+			if update.Bridge.Id != b.state.Id {
 				log.Printf("Received update for bridge ID %s, ignoring\n", update.Bridge.Id)
 				continue
 			}
 
 			log.Printf("Received update %+v\n", update.Bridge)
-			p.state = update.Bridge
-			p.bn.bridgeUpdated(p)
+			b.state = update.Bridge
+			b.bn.bridgeUpdated(b)
 		} else {
 			return
 		}

@@ -81,6 +81,7 @@ message Device {
     string manufacturer = 13;
 
     string address = 50;
+    string path = 51;
 
     // Examples could include a thermostat.
     message RangeDevice {

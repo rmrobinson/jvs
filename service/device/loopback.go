@@ -2,6 +2,7 @@ package device
 
 import (
 	"github.com/google/uuid"
+	"github.com/rmrobinson/jvs/service/device/pb"
 )
 
 // LoopbackBridge offers the standard bridge capabilities in a form that doesn't do anything.
@@ -17,27 +18,32 @@ func NewLoopbackBridge() *LoopbackBridge {
 	}
 }
 
-func (h *LoopbackBridge) ID() string {
-	return h.id
+func (b *LoopbackBridge) ID() string {
+	return b.id
 }
-func (h *LoopbackBridge) ModelID() string {
+func (b *LoopbackBridge) ModelID() string {
 	return "LoopbackID"
 }
-func (h *LoopbackBridge) ModelName() string {
+func (b *LoopbackBridge) ModelName() string {
 	return "Loopback"
 }
-func (h *LoopbackBridge) ModelDescription() string {
+func (b *LoopbackBridge) ModelDescription() string {
 	return "Loopback bridge"
 }
-func (h *LoopbackBridge) Manufacturer() string {
+func (b *LoopbackBridge) Manufacturer() string {
 	return "Faltung Systems"
 }
-func (h *LoopbackBridge) IconURLs() []string {
+func (b *LoopbackBridge) IconURLs() []string {
 	return []string{}
 }
-func (h *LoopbackBridge) Name() string {
+func (b *LoopbackBridge) Name() string {
 	return "Loopback"
 }
-func (h *LoopbackBridge) SetName(name string) error {
+func (b *LoopbackBridge) SetName(name string) error {
 	return nil
+}
+
+func (b *LoopbackBridge) Devices() ([]pb.Device, error) {
+	devices := []pb.Device{}
+	return devices, nil
 }

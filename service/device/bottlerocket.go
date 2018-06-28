@@ -1,6 +1,7 @@
 package device
 
 import (
+	"context"
 	"errors"
 	"log"
 
@@ -13,11 +14,15 @@ var (
 	ErrUnableToSetupBottlerocket = errors.New("unable to set up bottlerocket")
 )
 
-// BottlerocketPersister exposes an interface to allow the state of the bottlerocket network to be persisted.
+// BottlerocketDB exposes an interface to allow the state of the bottlerocket network to be persisted.
 // Because the X10 protocol doesn't support querying we need to maintain state across process restarts.
 type BottlerocketPersister interface {
-	//Devices(ctx context.Context, bridgeID string) ([]*pb.Device, error)
-	//AvailableDevices(ctx context.Context, bridgeID string) ([]*pb.Device, error)
+	ID(ctx context.Context) (string, error)
+	Name(ctx context.Context) (string, error)
+	SetName(ctx context.Context, name string) error
+
+	Devices(ctx context.Context, bridgeID string) ([]*pb.Device, error)
+	AvailableDevices(ctx context.Context, bridgeID string) ([]*pb.Device, error)
 
 	//SaveDevice(ctx context.Context, device *pb.Device) error
 }
@@ -26,6 +31,8 @@ type BottlerocketPersister interface {
 type BottlerocketBridge struct {
 	// TODO: use a logger
 	br *br.Bottlerocket
+
+	persister BottlerocketPersister
 }
 
 // SetupNewBottlerocketBridge takes a bridge config and returns the appropriate bottlerocket bridge if possible.
@@ -42,6 +49,7 @@ func SetupNewBottlerocketBridge(config *pb.BridgeConfig) (*BottlerocketBridge, e
 		return nil, ErrUnableToSetupBottlerocket
 	}
 
+
 	return NewBottlerocketBridge(br), nil
 }
 
@@ -52,27 +60,31 @@ func NewBottlerocketBridge(bridge *br.Bottlerocket) *BottlerocketBridge {
 	}
 }
 
-func (h *BottlerocketBridge) ID() string {
+func (b *BottlerocketBridge) ID() string {
 	return "1"
 }
-func (h *BottlerocketBridge) ModelID() string {
+func (b *BottlerocketBridge) ModelID() string {
 	return "CM17A"
 }
-func (h *BottlerocketBridge) ModelName() string {
+func (b *BottlerocketBridge) ModelName() string {
 	return "Firecracker"
 }
-func (h *BottlerocketBridge) ModelDescription() string {
+func (b *BottlerocketBridge) ModelDescription() string {
 	return "Serial-X10 bridge"
 }
-func (h *BottlerocketBridge) Manufacturer() string {
+func (b *BottlerocketBridge) Manufacturer() string {
 	return "x10.com"
 }
-func (h *BottlerocketBridge) IconURLs() []string {
+func (b *BottlerocketBridge) IconURLs() []string {
 	return []string{}
 }
-func (h *BottlerocketBridge) Name() string {
+func (b *BottlerocketBridge) Name() string {
 	return "X10 Firecracker"
 }
-func (h *BottlerocketBridge) SetName(name string) error {
+func (b *BottlerocketBridge) SetName(name string) error {
 	return nil
+}
+
+func (b *BottlerocketBridge) Devices() ([]pb.Device, error) {
+	return []pb.Device{}, nil
 }

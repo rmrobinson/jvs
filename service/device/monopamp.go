@@ -55,28 +55,33 @@ func NewMonopAmpBridge(notifier bridgeNotifier, amp *monopamp.Amplifier) *MonopA
 	return ret
 }
 
-func (h *MonopAmpBridge) ID() string {
+func (b *MonopAmpBridge) ID() string {
 	return "2"
 }
 
-func (h *MonopAmpBridge) ModelID() string {
+func (b *MonopAmpBridge) ModelID() string {
 	return "10761"
 }
-func (h *MonopAmpBridge) ModelName() string {
+func (b *MonopAmpBridge) ModelName() string {
 	return "Monoprice Amp"
 }
-func (h *MonopAmpBridge) ModelDescription() string {
+func (b *MonopAmpBridge) ModelDescription() string {
 	return "6 Zone Home Audio Multizone Controller"
 }
-func (h *MonopAmpBridge) Manufacturer() string {
+func (b *MonopAmpBridge) Manufacturer() string {
 	return "Monoprice"
 }
-func (h *MonopAmpBridge) IconURLs() []string {
+func (b *MonopAmpBridge) IconURLs() []string {
 	return []string{}
 }
-func (h *MonopAmpBridge) Name() string {
+func (b *MonopAmpBridge) Name() string {
 	return ""
 }
-func (h *MonopAmpBridge) SetName(name string) error {
+func (b *MonopAmpBridge) SetName(name string) error {
 	return nil
+}
+
+func (b *MonopAmpBridge) Devices() ([]pb.Device, error) {
+	devices := []pb.Device{}
+	return devices, nil
 }

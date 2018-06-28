@@ -13,7 +13,7 @@ type Bridge interface {
 	//CreateDevice(*pb.Device) error
 
 	//NewDevices() ([]pb.Device, error)
-	//Devices() ([]pb.Device, error)
+	Devices() ([]pb.Device, error)
 
 	//Device(string) (pb.Device, error)
 	//SetDeviceConfig(pb.Device, *proto.DeviceConfig) error

@@ -6,6 +6,7 @@ Package pb is a generated protocol buffer package.
 
 It is generated from these files:
 	bridge.proto
+	device.proto
 
 It has these top-level messages:
 	Address
@@ -19,6 +20,19 @@ It has these top-level messages:
 	GetBridgesResponse
 	WatchBridgesRequest
 	BridgeUpdate
+	DeviceConfig
+	DeviceState
+	Device
+	GetDevicesRequest
+	GetDevicesResponse
+	GetDeviceRequest
+	GetDeviceResponse
+	WatchDevicesRequest
+	WatchDevicesResponse
+	SetDeviceConfigRequest
+	SetDeviceConfigResponse
+	SetDeviceStateRequest
+	SetDeviceStateResponse
 */
 package pb
 
