@@ -1,4 +1,4 @@
-package device
+package bridge
 
 import (
 	"context"
@@ -85,6 +85,6 @@ func (b *BottlerocketBridge) SetName(name string) error {
 	return nil
 }
 
-func (b *BottlerocketBridge) Devices() ([]pb.Device, error) {
-	return []pb.Device{}, nil
+func (b *BottlerocketBridge) Devices() ([]*pb.Device, error) {
+	return []*pb.Device{}, nil
 }

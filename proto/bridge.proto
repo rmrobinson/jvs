@@ -45,8 +45,8 @@ message BridgeState {
 }
 
 message BridgeConfig {
-    string name = 1;
-    string id = 2;
+    string id = 1;
+    string name = 2;
 
     Address address = 10;
 
@@ -72,12 +72,18 @@ enum BridgeType {
     MonopriceAmp = 5;
 }
 
+enum BridgeMode {
+    Created = 0;
+    Initialized = 1;
+    Active = 2;
+    Disabled = 3;
+}
+
 message Bridge {
     string id = 1;
-
-    bool is_active = 2;
-
-    BridgeType type = 3;
+    BridgeType type = 2;
+    BridgeMode mode = 3;
+    string mode_reason = 4;
 
     string model_id = 10;
     string model_name = 11;
@@ -90,18 +96,17 @@ message Bridge {
     BridgeState state = 101;
 }
 
-message AddBridgeRequest {
-    BridgeType type = 1;
-    BridgeConfig config = 2;
-
-}
-message AddBridgeResponse {
-    Bridge bridge = 1;
-}
 message GetBridgesRequest {
 }
 message GetBridgesResponse {
     repeated Bridge bridges = 1;
+}
+message UpdateBridgeRequest {
+    string id = 1;
+    BridgeConfig config = 10;
+}
+message UpdateBridgeResponse {
+    Bridge bridge = 1;
 }
 
 message WatchBridgesRequest {
@@ -118,8 +123,7 @@ message BridgeUpdate {
 }
 
 service BridgeManager {
-    rpc AddBridge(AddBridgeRequest) returns (AddBridgeResponse) {}
     rpc GetBridges(GetBridgesRequest) returns (GetBridgesResponse) {}
-
+    rpc UpdateBridge(UpdateBridgeRequest) returns (UpdateBridgeResponse) {}
     rpc WatchBridges(WatchBridgesRequest) returns (stream BridgeUpdate) {}
 }

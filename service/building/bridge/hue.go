@@ -1,4 +1,4 @@
-package device
+package bridge
 
 import (
 	"context"
@@ -20,7 +20,7 @@ type HuePersister interface {
 
 // HueBridge is an implementation of a bridge for the Hue service.
 type HueBridge struct {
-	bn  bridgeNotifier
+	bn  BridgeNotifier
 	hue *hue.Bridge
 
 	state               hue.BridgeDescription
@@ -29,7 +29,7 @@ type HueBridge struct {
 }
 
 // NewHueBridge takes a previously set up Hue handle and exposes it as a Hue bridge.
-func NewHueBridge(notifier bridgeNotifier, bridge *hue.Bridge) *HueBridge {
+func NewHueBridge(notifier BridgeNotifier, bridge *hue.Bridge) *HueBridge {
 	ret := &HueBridge{
 		bn:               notifier,
 		hue:              bridge,
@@ -79,7 +79,7 @@ func (b *HueBridge) SetName(name string) error {
 	return b.hue.SetConfig(c)
 }
 
-func (b *HueBridge) Devices() ([]pb.Device, error) {
+func (b *HueBridge) Devices() ([]*pb.Device, error) {
 	lights, err := b.hue.Lights()
 
 	if err != nil {
@@ -92,7 +92,7 @@ func (b *HueBridge) Devices() ([]pb.Device, error) {
 		return nil, err
 	}
 
-	var devices []pb.Device
+	var devices []*pb.Device
 
 	for _, light := range lights {
 		d := convertLightToDevice(light)
@@ -123,7 +123,7 @@ func (b *HueBridge) stateRefresher() {
 
 			if b.state.UrlBase != state.UrlBase {
 				b.state = state
-				b.bn.bridgeUpdated(b)
+				b.bn.BridgeUpdated(b.ID())
 			}
 		case <-b.stopStateRefresh:
 			ticker.Stop()
@@ -132,8 +132,8 @@ func (b *HueBridge) stateRefresher() {
 	}
 }
 
-func convertLightToDevice(l hue.Light) pb.Device {
-	var d pb.Device
+func convertLightToDevice(l hue.Light) *pb.Device {
+	d := &pb.Device{}
 	d.Reset()
 
 	d.Id = l.UniqueId
@@ -189,8 +189,8 @@ func convertLightToDevice(l hue.Light) pb.Device {
 	return d
 }
 
-func convertSensorToDevice(s hue.Sensor) pb.Device {
-	var d pb.Device
+func convertSensorToDevice(s hue.Sensor) *pb.Device {
+	d := &pb.Device{}
 	d.Reset()
 
 	d.Id = s.UniqueId

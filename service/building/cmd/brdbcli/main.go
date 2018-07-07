@@ -19,7 +19,7 @@ func main() {
 		return
 	}
 
-	brdb := device.BottlerocketDB{}
+	brdb := building.BottlerocketDB{}
 
 	err := brdb.Open(*dbPath)
 

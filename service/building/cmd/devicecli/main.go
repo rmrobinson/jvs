@@ -7,44 +7,10 @@ import (
 	"io"
 	"log"
 
-	"github.com/rmrobinson/jvs/service/device/pb"
+	"github.com/rmrobinson/jvs/service/building/pb"
 	"google.golang.org/grpc"
+	"sync"
 )
-
-func addLoopback(bc pb.BridgeManagerClient) {
-	addResp, err := bc.AddBridge(context.Background(), &pb.AddBridgeRequest{
-		Type: pb.BridgeType_Loopback,
-	})
-
-	if err != nil {
-		fmt.Printf("Unable to add loopback bridge: %s\n", err.Error())
-		return
-	}
-
-	fmt.Printf("Created bridge %+v\n", addResp.Bridge)
-}
-
-func addProxy(bc pb.BridgeManagerClient) {
-	addResp, err := bc.AddBridge(context.Background(), &pb.AddBridgeRequest{
-		Type: pb.BridgeType_Proxy,
-		Config: &pb.BridgeConfig{
-			Id: "68c0987b-62ea-4d16-8347-9340feca87d0",
-			Address: &pb.Address{
-				Ip: &pb.Address_Ip{
-					Host: "127.0.0.1",
-					Port: 1338,
-				},
-			},
-		},
-	})
-
-	if err != nil {
-		fmt.Printf("Unable to add loopback bridge: %s\n", err.Error())
-		return
-	}
-
-	fmt.Printf("Created bridge %+v\n", addResp.Bridge)
-}
 
 func getBridges(bc pb.BridgeManagerClient) {
 	getResp, err := bc.GetBridges(context.Background(), &pb.GetBridgesRequest{})
@@ -60,7 +26,7 @@ func getBridges(bc pb.BridgeManagerClient) {
 	}
 }
 
-func monitor(bc pb.BridgeManagerClient) {
+func monitorBridges(bc pb.BridgeManagerClient) {
 	stream, err := bc.WatchBridges(context.Background(), &pb.WatchBridgesRequest{})
 
 	if err != nil {
@@ -79,7 +45,25 @@ func monitor(bc pb.BridgeManagerClient) {
 		log.Printf("Change: %v, Bridge: %+v\n", msg.Action, msg.Bridge)
 	}
 }
+func monitorDevices(dc pb.DeviceManagerClient) {
+	stream, err := dc.WatchDevices(context.Background(), &pb.WatchDevicesRequest{})
 
+	if err != nil {
+		return
+	}
+
+	for {
+		msg, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Printf("Error while watching devices: %v", err)
+			break
+		}
+
+		log.Printf("Change: %v, Device: %+v\n", msg.Action, msg.Device)
+	}
+}
 func main() {
 	var (
 		addr = flag.String("addr", "", "The address to connect to")
@@ -98,16 +82,26 @@ func main() {
 	}
 
 	bridgeClient := pb.NewBridgeManagerClient(conn)
+	deviceClient := pb.NewDeviceManagerClient(conn)
 
 	switch *mode {
-	case "proxy":
-		addProxy(bridgeClient)
-	case "loopback":
-		addLoopback(bridgeClient)
 	case "get":
 		getBridges(bridgeClient)
 	case "monitor":
-		monitor(bridgeClient)
+		var wg sync.WaitGroup
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			monitorBridges(bridgeClient)
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			monitorDevices(deviceClient)
+		}()
+		wg.Wait()
 	default:
 		fmt.Printf("Unknown mode specified")
 	}

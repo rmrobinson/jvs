@@ -1,4 +1,4 @@
-package device
+package bridge
 
 import (
 	"errors"
@@ -19,12 +19,12 @@ var (
 
 // MonopAmpBridge is an implementation of a bridge for the Hue service.
 type MonopAmpBridge struct {
-	bn  bridgeNotifier
-	amp *monopamp.Amplifier
+	bn  BridgeNotifier
+	amp *monopamp.SerialAmplifier
 }
 
 // SetupNewMonopAmpBridge takes a bridge config and returns the appropriate monoprice amp bridge if possible.
-func SetupNewMonopAmpBridge(config *pb.BridgeConfig, notifier bridgeNotifier) (*MonopAmpBridge, error) {
+func SetupNewMonopAmpBridge(config *pb.BridgeConfig, notifier BridgeNotifier) (*MonopAmpBridge, error) {
 	if config.Address.Usb == nil {
 		return nil, ErrBridgeConfigInvalid.Err()
 	}
@@ -40,13 +40,13 @@ func SetupNewMonopAmpBridge(config *pb.BridgeConfig, notifier bridgeNotifier) (*
 		return nil, ErrUnableToSetupMonopAmp
 	}
 
-	amp := monopamp.NewAmplifier(s)
+	amp, err := monopamp.NewSerialAmplifier(s)
 
-	return NewMonopAmpBridge(notifier, amp), nil
+	return NewMonopAmpBridge(notifier, amp), err
 }
 
 // NewMonopAmpBridge takes a previously set up MonopAmp handle and exposes it as a MonopAmp bridge.
-func NewMonopAmpBridge(notifier bridgeNotifier, amp *monopamp.Amplifier) *MonopAmpBridge {
+func NewMonopAmpBridge(notifier BridgeNotifier, amp *monopamp.SerialAmplifier) *MonopAmpBridge {
 	ret := &MonopAmpBridge{
 		bn:  notifier,
 		amp: amp,
@@ -81,7 +81,7 @@ func (b *MonopAmpBridge) SetName(name string) error {
 	return nil
 }
 
-func (b *MonopAmpBridge) Devices() ([]pb.Device, error) {
-	devices := []pb.Device{}
+func (b *MonopAmpBridge) Devices() ([]*pb.Device, error) {
+	devices := []*pb.Device{}
 	return devices, nil
 }

@@ -1,11 +1,11 @@
-package device
+package building
 
 import (
 	"context"
 	"errors"
 	"log"
 
-	"github.com/rmrobinson/jvs/service/device/pb"
+	"github.com/rmrobinson/jvs/service/building/pb"
 	"google.golang.org/grpc"
 	"fmt"
 )
@@ -18,14 +18,14 @@ var (
 // ProxyBridge is a bridge implementation that proxies requests to a specified bridge service.
 type ProxyBridge struct {
 	// TODO: use a logger
-	bn     bridgeNotifier
+	bn     Notifier
 	remote pb.BridgeManagerClient
 
 	state *pb.Bridge
 }
 
 // SetupNewProxyBridge creates a new proxy bridge using the specified bridge configuration.
-func SetupNewProxyBridge(config *pb.BridgeConfig, notifier bridgeNotifier) (*ProxyBridge, error) {
+func SetupNewProxyBridge(config *pb.BridgeConfig, notifier Notifier) (*ProxyBridge, error) {
 	if config.Address.Ip == nil {
 		return nil, ErrBridgeConfigInvalid.Err()
 	}
@@ -47,7 +47,7 @@ func SetupNewProxyBridge(config *pb.BridgeConfig, notifier bridgeNotifier) (*Pro
 }
 
 // NewProxyBridge creates a bridge implementation from a supplied bridge client.
-func NewProxyBridge(notifier bridgeNotifier, id string, client pb.BridgeManagerClient) *ProxyBridge {
+func NewProxyBridge(notifier Notifier, id string, client pb.BridgeManagerClient) *ProxyBridge {
 	ret := &ProxyBridge{
 		bn:     notifier,
 		remote: client,
@@ -89,8 +89,8 @@ func (b *ProxyBridge) SetName(name string) error {
 	return errors.New("not implemented")
 }
 
-func (b *ProxyBridge) Devices() ([]pb.Device, error) {
-	devices := []pb.Device{}
+func (b *ProxyBridge) Devices() ([]*pb.Device, error) {
+	devices := []*pb.Device{}
 	return devices, nil
 }
 
@@ -114,7 +114,7 @@ func (b *ProxyBridge) stateMonitor() {
 
 			log.Printf("Received update %+v\n", update.Bridge)
 			b.state = update.Bridge
-			b.bn.bridgeUpdated(b)
+			b.bn.BridgeUpdated(b.state)
 		} else {
 			return
 		}

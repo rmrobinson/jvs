@@ -9,9 +9,9 @@ import (
 	"os"
 
 	hue "github.com/rmrobinson/hue-go"
-	"github.com/rmrobinson/jvs/service/device"
-	"github.com/rmrobinson/jvs/service/device/pb"
+	"github.com/rmrobinson/jvs/service/building/pb"
 	"google.golang.org/grpc"
+	"github.com/rmrobinson/jvs/service/building"
 )
 
 func main() {
@@ -22,14 +22,14 @@ func main() {
 
 	flag.Parse()
 
-	bm := device.NewBridgeManager()
+	bm := building.NewHub()
 
 	// Bottlerocket setup is done via the API
 	// Proxy setup is done via the API
 
 	// Hue setup is done here since we don't configure bridges directly
 	if len(*hueDBPath) > 0 {
-		hueDB := &device.HueDB{}
+		hueDB := &building.HueDB{}
 		err := hueDB.Open(*hueDBPath)
 
 		if err != nil {
@@ -50,14 +50,14 @@ func main() {
 	}
 	defer lis.Close()
 
-	api := device.NewAPI(bm)
+	api := building.NewAPI(bm)
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterBridgeManagerServer(grpcServer, api)
 	grpcServer.Serve(lis)
 }
 
-func hueAutodiscover(bm *device.BridgeManager, p device.HuePersister) {
+func hueAutodiscover(bm *building.Hub, p building.HuePersister) {
 	bridges := make(chan hue.Bridge)
 
 	locator := hue.NewLocator()
@@ -74,6 +74,6 @@ func hueAutodiscover(bm *device.BridgeManager, p device.HuePersister) {
 			bridge.Username = username
 		}
 
-		bm.AddBridge(device.NewHueBridge(bm, &bridge))
+		bm.AddBridge(building.NewHueBridge(bm, &bridge))
 	}
 }

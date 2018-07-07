@@ -1,4 +1,4 @@
-package device
+package bridge
 
 import (
 	"database/sql"

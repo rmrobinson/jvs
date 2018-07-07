@@ -81,7 +81,6 @@ message Device {
     string manufacturer = 13;
 
     string address = 50;
-    string path = 51;
 
     // Examples could include a thermostat.
     message RangeDevice {
@@ -116,16 +115,15 @@ message GetDevicesResponse {
 }
 
 message GetDeviceRequest {
-    string address = 1;
+    string id = 1;
 }
 message GetDeviceResponse {
     Device device = 1;
 }
 
 message WatchDevicesRequest {
-    repeated string addresses = 1;
 }
-message WatchDevicesResponse {
+message DeviceUpdate {
         enum Action {
             ADDED = 0;
             CHANGED = 1;
@@ -137,7 +135,7 @@ message WatchDevicesResponse {
 }
 
 message SetDeviceConfigRequest {
-    string address = 1;
+    string id = 1;
     string version = 2;
     DeviceConfig config = 10;
 }
@@ -147,7 +145,7 @@ message SetDeviceConfigResponse {
 }
 
 message SetDeviceStateRequest {
-    string address = 1;
+    string id = 1;
     string version = 2;
     DeviceState state = 10;
 }
@@ -163,7 +161,7 @@ service DeviceManager {
 
     rpc GetDevice(GetDeviceRequest) returns (GetDeviceResponse) {}
 
-    rpc WatchDevices(WatchDevicesRequest) returns (stream WatchDevicesResponse) {}
+    rpc WatchDevices(WatchDevicesRequest) returns (stream DeviceUpdate) {}
 
     rpc SetDeviceConfig(SetDeviceConfigRequest) returns (SetDeviceConfigResponse) {}
 

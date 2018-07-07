@@ -1,4 +1,4 @@
-package device
+package bridge
 
 import (
 	"github.com/google/uuid"
@@ -43,7 +43,7 @@ func (b *LoopbackBridge) SetName(name string) error {
 	return nil
 }
 
-func (b *LoopbackBridge) Devices() ([]pb.Device, error) {
-	devices := []pb.Device{}
+func (b *LoopbackBridge) Devices() ([]*pb.Device, error) {
+	devices := []*pb.Device{}
 	return devices, nil
 }
