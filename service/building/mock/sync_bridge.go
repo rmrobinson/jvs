@@ -1,11 +1,13 @@
 package mock
 
 import (
+	"context"
 	"math/rand"
+	"time"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/google/uuid"
 	"github.com/rmrobinson/jvs/service/building/pb"
-	"time"
 )
 
 type SyncBridge struct {
@@ -46,7 +48,7 @@ func (sb *SyncBridge) Run() {
 	t := time.NewTicker(time.Second * 6)
 	for {
 		select {
-		case <- t.C:
+		case <-t.C:
 			for id, d := range sb.devices {
 				d.update()
 				sb.devices[id] = d
@@ -55,18 +57,18 @@ func (sb *SyncBridge) Run() {
 	}
 }
 
-func (sb *SyncBridge) Bridge() (*pb.Bridge, error) {
+func (sb *SyncBridge) Bridge(ctx context.Context) (*pb.Bridge, error) {
 	return sb.b, nil
 }
-func (sb *SyncBridge) SetBridgeConfig(config *pb.BridgeConfig) error {
+func (sb *SyncBridge) SetBridgeConfig(ctx context.Context, config *pb.BridgeConfig) error {
 	sb.b.Config = config
 	return nil
 }
-func (sb *SyncBridge) SetBridgeState(state *pb.BridgeState) error {
+func (sb *SyncBridge) SetBridgeState(ctx context.Context, state *pb.BridgeState) error {
 	return ErrReadOnly
 }
 
-func (sb *SyncBridge) SearchForAvailableDevices() error {
+func (sb *SyncBridge) SearchForAvailableDevices(context.Context) error {
 	if len(sb.availDevices) < 1 {
 		count := rand.Intn(5)
 
@@ -77,46 +79,46 @@ func (sb *SyncBridge) SearchForAvailableDevices() error {
 
 	return nil
 }
-func (sb *SyncBridge) AvailableDevices() ([]*pb.Device, error) {
+func (sb *SyncBridge) AvailableDevices(context.Context) ([]*pb.Device, error) {
 	return sb.availDevices, nil
 }
 
-func (sb *SyncBridge) Devices() ([]*pb.Device, error) {
+func (sb *SyncBridge) Devices(context.Context) ([]*pb.Device, error) {
 	var ret []*pb.Device
 	for _, d := range sb.devices {
 		ret = append(ret, d.d)
 	}
 	return ret, nil
 }
-func (sb *SyncBridge) Device(id string) (*pb.Device, error) {
+func (sb *SyncBridge) Device(ctx context.Context, id string) (*pb.Device, error) {
 	if d, ok := sb.devices[id]; ok {
 		return d.d, nil
 	}
 	return nil, ErrDeviceNotPresent
 }
 
-func (sb *SyncBridge) SetDeviceConfig(id string, config *pb.DeviceConfig) error {
+func (sb *SyncBridge) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceConfig) error {
 	var d *device
 	var ok bool
 	if d, ok = sb.devices[id]; !ok {
 		return ErrDeviceNotPresent
 	}
 
-	d.d.Config = config
+	d.d.Config = proto.Clone(config).(*pb.DeviceConfig)
 	return nil
 }
-func (sb *SyncBridge) SetDeviceState(id string, state *pb.DeviceState) error {
+func (sb *SyncBridge) SetDeviceState(ctx context.Context, id string, state *pb.DeviceState) error {
 	var d *device
 	var ok bool
 	if d, ok = sb.devices[id]; !ok {
 		return ErrDeviceNotPresent
 	}
 
-	d.d.State = state
+	d.d.State = proto.Clone(state).(*pb.DeviceState)
 	return nil
 
 }
-func (sb *SyncBridge) AddDevice(id string) error {
+func (sb *SyncBridge) AddDevice(ctx context.Context, id string) error {
 	var d *pb.Device
 	found := false
 	for idx, availDevice := range sb.availDevices {
@@ -137,7 +139,7 @@ func (sb *SyncBridge) AddDevice(id string) error {
 	}
 	return nil
 }
-func (sb *SyncBridge) DeleteDevice(id string) error {
+func (sb *SyncBridge) DeleteDevice(ctx context.Context, id string) error {
 	if _, ok := sb.devices[id]; !ok {
 		return ErrDeviceNotPresent
 	}

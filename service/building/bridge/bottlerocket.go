@@ -49,7 +49,6 @@ func SetupNewBottlerocketBridge(config *pb.BridgeConfig) (*BottlerocketBridge, e
 		return nil, ErrUnableToSetupBottlerocket
 	}
 
-
 	return NewBottlerocketBridge(br), nil
 }
 

@@ -9,9 +9,9 @@ import (
 	"os"
 
 	hue "github.com/rmrobinson/hue-go"
+	"github.com/rmrobinson/jvs/service/building"
 	"github.com/rmrobinson/jvs/service/building/pb"
 	"google.golang.org/grpc"
-	"github.com/rmrobinson/jvs/service/building"
 )
 
 func main() {

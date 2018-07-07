@@ -3,11 +3,11 @@ package building
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/rmrobinson/jvs/service/building/pb"
 	"google.golang.org/grpc"
-	"fmt"
 )
 
 var (
@@ -93,7 +93,6 @@ func (b *ProxyBridge) Devices() ([]*pb.Device, error) {
 	devices := []*pb.Device{}
 	return devices, nil
 }
-
 
 func (b *ProxyBridge) stateMonitor() {
 	stream, err := b.remote.WatchBridges(context.Background(), &pb.WatchBridgesRequest{})

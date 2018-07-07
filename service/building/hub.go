@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/rmrobinson/jvs/service/building/pb"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -16,24 +17,24 @@ var (
 	ErrBridgeNotRegistered     = errors.New("bridge not registered")
 	ErrDeviceAlreadyRegistered = errors.New("device already registered")
 	ErrDeviceNotRegistered     = errors.New("device not registered")
-	ErrNilArgument = errors.New("nil argument")
+	ErrNilArgument             = errors.New("nil argument")
 )
 
 // Bridge is an interface to a set of capabilities a device bridge must support.
 type Bridge interface {
-	Bridge() (*pb.Bridge, error)
-	SetBridgeConfig(*pb.BridgeConfig) error
-	SetBridgeState(*pb.BridgeState) error
+	Bridge(context.Context) (*pb.Bridge, error)
+	SetBridgeConfig(context.Context, *pb.BridgeConfig) error
+	SetBridgeState(context.Context, *pb.BridgeState) error
 
-	SearchForAvailableDevices() error
-	AvailableDevices() ([]*pb.Device, error)
-	Devices() ([]*pb.Device, error)
-	Device(string) (*pb.Device, error)
+	SearchForAvailableDevices(context.Context) error
+	AvailableDevices(context.Context) ([]*pb.Device, error)
+	Devices(context.Context) ([]*pb.Device, error)
+	Device(context.Context, string) (*pb.Device, error)
 
-	SetDeviceConfig(string, *pb.DeviceConfig) error
-	SetDeviceState(string, *pb.DeviceState) error
-	AddDevice(string) error
-	DeleteDevice(string) error
+	SetDeviceConfig(context.Context, string, *pb.DeviceConfig) error
+	SetDeviceState(context.Context, string, *pb.DeviceState) error
+	AddDevice(context.Context, string) error
+	DeleteDevice(context.Context, string) error
 
 	//Pair(string) error
 }
@@ -52,10 +53,6 @@ type Notifier interface {
 	DeviceAdded(bridgeID string, device *pb.Device) error
 	DeviceUpdated(bridgeID string, device *pb.Device) error
 	DeviceRemoved(bridgeID string, device *pb.Device) error
-}
-
-type broadcaster interface {
-	sendDeviceUpdate(pb.DeviceUpdate_Action, *pb.Device)
 }
 
 // Hub contains the required logic to operate on a collection of bridges.
@@ -104,6 +101,67 @@ func (h *Hub) Devices() []*pb.Device {
 	return ret
 }
 
+func (h *Hub) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceConfig) (*pb.Device, error) {
+	h.bridgesLock.RLock()
+	defer h.bridgesLock.RUnlock()
+
+	var bi *bridgeInstance
+	for _, b := range h.bridges {
+		if _, ok := b.devices[id]; ok {
+			bi = b
+			break
+		}
+	}
+
+	if bi == nil {
+		return nil, ErrDeviceNotRegistered
+	}
+
+	err := bi.bridgeHandle.SetDeviceConfig(ctx, id, config)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Propagate this update.
+	// Since we don't have the full device we need to clone our current and update the state.
+	d := proto.Clone(bi.devices[id]).(*pb.Device)
+	d.Config = config
+	h.DeviceUpdated(bi.bridgeID, d)
+
+	return d, nil
+}
+
+func (h *Hub) SetDeviceState(ctx context.Context, id string, state *pb.DeviceState) (*pb.Device, error) {
+	h.bridgesLock.RLock()
+	defer h.bridgesLock.RUnlock()
+
+	var bi *bridgeInstance
+	for _, b := range h.bridges {
+		if _, ok := b.devices[id]; ok {
+			bi = b
+			break
+		}
+	}
+
+	if bi == nil {
+		return nil, ErrDeviceNotRegistered
+	}
+
+	err := bi.bridgeHandle.SetDeviceState(ctx, id, state)
+	if err != nil {
+		return nil, err
+	}
+
+	// Propagate this update.
+	// Since we don't have the full device we need to clone our current and update the state.
+	d := proto.Clone(bi.devices[id]).(*pb.Device)
+	d.State = state
+	h.DeviceUpdated(bi.bridgeID, d)
+
+	return d, nil
+}
+
 // AddBridge adds a pre-configured bridge into the collection of managed bridges.
 // This will signal outwards that this bridge collection has been updated.
 func (h *Hub) AddBridge(b Bridge, refreshRate time.Duration) error {
@@ -133,7 +191,7 @@ func (h *Hub) AddAsyncBridge(b AsyncBridge) error {
 }
 
 func (h *Hub) addBridgeInstance(b Bridge) (*bridgeInstance, error) {
-	startB, err := b.Bridge()
+	startB, err := b.Bridge(context.Background())
 	if err != nil {
 		return nil, err
 	}

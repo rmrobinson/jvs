@@ -1,12 +1,14 @@
 package mock
 
 import (
+	"context"
 	"math/rand"
-
-	"github.com/google/uuid"
-	"github.com/rmrobinson/jvs/service/building/pb"
-	"github.com/rmrobinson/jvs/service/building"
 	"time"
+
+	"github.com/golang/protobuf/proto"
+	"github.com/google/uuid"
+	"github.com/rmrobinson/jvs/service/building"
+	"github.com/rmrobinson/jvs/service/building/pb"
 )
 
 type AsyncBridge struct {
@@ -49,7 +51,7 @@ func (ab *AsyncBridge) Run() {
 	t := time.NewTicker(7 * time.Second)
 	for {
 		select {
-		case <- t.C:
+		case <-t.C:
 			for id, d := range ab.devices {
 				d.update()
 				ab.devices[id] = d
@@ -63,18 +65,18 @@ func (ab *AsyncBridge) SetNotifier(n building.Notifier) {
 	ab.notifier = n
 }
 
-func (ab *AsyncBridge) Bridge() (*pb.Bridge, error) {
+func (ab *AsyncBridge) Bridge(context.Context) (*pb.Bridge, error) {
 	return ab.b, nil
 }
-func (ab *AsyncBridge) SetBridgeConfig(config *pb.BridgeConfig) error {
+func (ab *AsyncBridge) SetBridgeConfig(ctx context.Context, config *pb.BridgeConfig) error {
 	ab.b.Config = config
 	return nil
 }
-func (ab *AsyncBridge) SetBridgeState(state *pb.BridgeState) error {
+func (ab *AsyncBridge) SetBridgeState(ctx context.Context, state *pb.BridgeState) error {
 	return ErrReadOnly
 }
 
-func (ab *AsyncBridge) SearchForAvailableDevices() error {
+func (ab *AsyncBridge) SearchForAvailableDevices(context.Context) error {
 	if len(ab.availDevices) < 1 {
 		count := rand.Intn(5)
 
@@ -85,46 +87,46 @@ func (ab *AsyncBridge) SearchForAvailableDevices() error {
 
 	return nil
 }
-func (ab *AsyncBridge) AvailableDevices() ([]*pb.Device, error) {
+func (ab *AsyncBridge) AvailableDevices(context.Context) ([]*pb.Device, error) {
 	return ab.availDevices, nil
 }
 
-func (ab *AsyncBridge) Devices() ([]*pb.Device, error) {
+func (ab *AsyncBridge) Devices(context.Context) ([]*pb.Device, error) {
 	var ret []*pb.Device
 	for _, d := range ab.devices {
 		ret = append(ret, d.d)
 	}
 	return ret, nil
 }
-func (ab *AsyncBridge) Device(id string) (*pb.Device, error) {
+func (ab *AsyncBridge) Device(ctx context.Context, id string) (*pb.Device, error) {
 	if d, ok := ab.devices[id]; ok {
 		return d.d, nil
 	}
 	return nil, ErrDeviceNotPresent
 }
 
-func (ab *AsyncBridge) SetDeviceConfig(id string, config *pb.DeviceConfig) error {
+func (ab *AsyncBridge) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceConfig) error {
 	var d *device
 	var ok bool
 	if d, ok = ab.devices[id]; !ok {
 		return ErrDeviceNotPresent
 	}
 
-	d.d.Config = config
+	d.d.Config = proto.Clone(config).(*pb.DeviceConfig)
 	return nil
 }
-func (ab *AsyncBridge) SetDeviceState(id string, state *pb.DeviceState) error {
+func (ab *AsyncBridge) SetDeviceState(ctx context.Context, id string, state *pb.DeviceState) error {
 	var d *device
 	var ok bool
 	if d, ok = ab.devices[id]; !ok {
 		return ErrDeviceNotPresent
 	}
 
-	d.d.State = state
+	d.d.State = proto.Clone(state).(*pb.DeviceState)
 	return nil
 
 }
-func (ab *AsyncBridge) AddDevice(id string) error {
+func (ab *AsyncBridge) AddDevice(ctx context.Context, id string) error {
 	var d *pb.Device
 	found := false
 	for idx, availDevice := range ab.availDevices {
@@ -145,7 +147,7 @@ func (ab *AsyncBridge) AddDevice(id string) error {
 	}
 	return nil
 }
-func (ab *AsyncBridge) DeleteDevice(id string) error {
+func (ab *AsyncBridge) DeleteDevice(ctx context.Context, id string) error {
 	if _, ok := ab.devices[id]; !ok {
 		return ErrDeviceNotPresent
 	}

@@ -9,7 +9,7 @@ import (
 func main() {
 	var (
 		dbPath = flag.String("dbPath", "", "The path to the DB to inspect")
-		name = flag.String("name", "", "The optional name to save")
+		name   = flag.String("name", "", "The optional name to save")
 	)
 
 	flag.Parse()

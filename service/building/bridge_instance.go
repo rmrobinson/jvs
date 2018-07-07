@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rmrobinson/jvs/service/building/pb"
+	"golang.org/x/net/context"
 )
 
 type bridgeInstance struct {
@@ -37,7 +38,9 @@ func newBridgeInstance(bridgeHandle Bridge, bridge *pb.Bridge, notifier Notifier
 }
 
 func (bi *bridgeInstance) refresh() {
-	bridge, err := bi.bridgeHandle.Bridge()
+	ctx := context.Background()
+
+	bridge, err := bi.bridgeHandle.Bridge(ctx)
 	if err != nil {
 		bi.bridge.Mode = pb.BridgeMode_Initialized
 		bi.bridge.ModeReason = err.Error()
@@ -48,7 +51,7 @@ func (bi *bridgeInstance) refresh() {
 		bi.notifier.BridgeUpdated(bridge)
 	}
 
-	devices, err := bi.bridgeHandle.Devices()
+	devices, err := bi.bridgeHandle.Devices(ctx)
 	if err != nil {
 		bi.bridge.Mode = pb.BridgeMode_Initialized
 		bi.bridge.ModeReason = err.Error()

@@ -16,22 +16,23 @@ var (
 	ErrBridgeTypeUndefined   = status.New(codes.InvalidArgument, "bridge type must be specified to create")
 	ErrBridgeTypeUnsupported = status.New(codes.InvalidArgument, "bridge type cannot be created manually")
 	ErrBridgeConfigInvalid   = status.New(codes.InvalidArgument, "bridge config is not supported for requested type")
+	ErrDeviceNotFound        = status.New(codes.NotFound, "device not found")
 )
 
 type API struct {
-	bm *Hub
+	hub *Hub
 }
 
-func NewAPI(bm *Hub) *API {
+func NewAPI(hub *Hub) *API {
 	return &API{
-		bm: bm,
+		hub: hub,
 	}
 }
 
 func (a *API) GetBridges(ctx context.Context, req *pb.GetBridgesRequest) (*pb.GetBridgesResponse, error) {
 	resp := &pb.GetBridgesResponse{}
-	for _, bridge := range a.bm.bridges {
-		resp.Bridges = append(resp.Bridges, bridge.bridge)
+	for _, bridge := range a.hub.Bridges() {
+		resp.Bridges = append(resp.Bridges, bridge)
 	}
 
 	return resp, nil
@@ -56,11 +57,11 @@ func (a *API) WatchBridges(req *pb.WatchBridgesRequest, stream pb.BridgeManager_
 		peerAddr: addr,
 	}
 
-	a.bm.bw.add(watcher)
-	defer a.bm.bw.remove(watcher)
+	a.hub.bw.add(watcher)
+	defer a.hub.bw.remove(watcher)
 
 	// Send all of the currently active bridges to start.
-	for _, impl := range a.bm.bridges {
+	for _, impl := range a.hub.bridges {
 		update := &pb.BridgeUpdate{
 			Action: pb.BridgeUpdate_ADDED,
 			Bridge: impl.bridge,
@@ -89,16 +90,37 @@ func (a *API) WatchBridges(req *pb.WatchBridgesRequest, stream pb.BridgeManager_
 }
 
 func (a *API) GetDevices(context.Context, *pb.GetDevicesRequest) (*pb.GetDevicesResponse, error) {
-	return nil, ErrNotImplemented.Err()
+	resp := &pb.GetDevicesResponse{}
+	for _, device := range a.hub.Devices() {
+		resp.Devices = append(resp.Devices, device)
+	}
+
+	return resp, nil
 }
-func (a *API) GetDevice(context.Context, *pb.GetDeviceRequest) (*pb.GetDeviceResponse, error) {
-	return nil, ErrNotImplemented.Err()
+func (a *API) GetDevice(ctx context.Context, req *pb.GetDeviceRequest) (*pb.GetDeviceResponse, error) {
+	for _, device := range a.hub.Devices() {
+		if device.Id == req.Id {
+			return &pb.GetDeviceResponse{
+				Device: device,
+			}, nil
+		}
+	}
+
+	return nil, ErrDeviceNotFound.Err()
 }
-func (a *API) SetDeviceConfig(context.Context, *pb.SetDeviceConfigRequest) (*pb.SetDeviceConfigResponse, error) {
-	return nil, ErrNotImplemented.Err()
+func (a *API) SetDeviceConfig(ctx context.Context, req *pb.SetDeviceConfigRequest) (*pb.SetDeviceConfigResponse, error) {
+	resp, err := a.hub.SetDeviceConfig(ctx, req.Id, req.Config)
+
+	return &pb.SetDeviceConfigResponse{
+		Device: resp,
+	}, err
 }
-func (a *API) SetDeviceState(context.Context, *pb.SetDeviceStateRequest) (*pb.SetDeviceStateResponse, error) {
-	return nil, ErrNotImplemented.Err()
+func (a *API) SetDeviceState(ctx context.Context, req *pb.SetDeviceStateRequest) (*pb.SetDeviceStateResponse, error) {
+	resp, err := a.hub.SetDeviceState(ctx, req.Id, req.State)
+
+	return &pb.SetDeviceStateResponse{
+		Device: resp,
+	}, err
 }
 func (a *API) WatchDevices(req *pb.WatchDevicesRequest, stream pb.DeviceManager_WatchDevicesServer) error {
 	peer, isOk := peer.FromContext(stream.Context())
@@ -115,11 +137,11 @@ func (a *API) WatchDevices(req *pb.WatchDevicesRequest, stream pb.DeviceManager_
 		peerAddr: addr,
 	}
 
-	a.bm.dw.add(watcher)
-	defer a.bm.dw.remove(watcher)
+	a.hub.dw.add(watcher)
+	defer a.hub.dw.remove(watcher)
 
 	// Send all of the currently active bridges to start.
-	for _, impl := range a.bm.Devices() {
+	for _, impl := range a.hub.Devices() {
 		update := &pb.DeviceUpdate{
 			Action: pb.DeviceUpdate_ADDED,
 			Device: impl,
