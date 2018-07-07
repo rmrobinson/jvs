@@ -3,6 +3,7 @@ package building
 import (
 	"reflect"
 	"sync"
+	"time"
 
 	"github.com/rmrobinson/jvs/service/building/pb"
 )
@@ -84,5 +85,17 @@ func (bi *bridgeInstance) refresh() {
 	if bi.bridge.Mode == pb.BridgeMode_Initialized {
 		bi.bridge.Mode = pb.BridgeMode_Active
 		bi.bridge.ModeReason = ""
+	}
+}
+
+func (bi *bridgeInstance) monitor(interval time.Duration) {
+	t := time.NewTicker(interval)
+	for {
+		select {
+		case <-t.C:
+			bi.refresh()
+		case <-bi.cancelRefresh:
+			return
+		}
 	}
 }

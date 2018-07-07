@@ -117,17 +117,7 @@ func (h *Hub) AddBridge(b Bridge, refreshRate time.Duration) error {
 		refreshRate = time.Second
 	}
 
-	go func(bi *bridgeInstance) {
-		t := time.NewTicker(refreshRate)
-		for {
-			select {
-			case <-t.C:
-				bi.refresh()
-			case <-bi.cancelRefresh:
-				return
-			}
-		}
-	}(bi)
+	go bi.monitor(refreshRate)
 
 	return nil
 }
