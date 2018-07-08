@@ -10,14 +10,14 @@ import (
 )
 
 type bridgeInstance struct {
-	bridgeID      string
+	bridgeID string
+	bridge   *pb.Bridge
+	devices  map[string]*pb.Device
+
 	bridgeHandle  Bridge
 	cancelRefresh chan bool
 	notifier      Notifier
 	lock          sync.Mutex
-
-	devices map[string]*pb.Device
-	bridge  *pb.Bridge
 }
 
 func newBridgeInstance(bridgeHandle Bridge, bridge *pb.Bridge, notifier Notifier) *bridgeInstance {

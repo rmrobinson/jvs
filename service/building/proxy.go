@@ -2,119 +2,119 @@ package building
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log"
+	"sync"
 
 	"github.com/rmrobinson/jvs/service/building/pb"
 	"google.golang.org/grpc"
 )
 
-var (
-	// ErrUnableToSetupProxy is returned if there was an error setting up the proxy bridge
-	ErrUnableToSetupProxy = errors.New("unable to set up proxy bridge")
-)
+// ProxyHub is a hub implementation that proxies requests to a specified service
+type ProxyHub struct {
+	conn *grpc.ClientConn
 
-// ProxyBridge is a bridge implementation that proxies requests to a specified bridge service.
-type ProxyBridge struct {
-	// TODO: use a logger
-	bn     Notifier
-	remote pb.BridgeManagerClient
-
-	state *pb.Bridge
-}
-
-// SetupNewProxyBridge creates a new proxy bridge using the specified bridge configuration.
-func SetupNewProxyBridge(config *pb.BridgeConfig, notifier Notifier) (*ProxyBridge, error) {
-	if config.Address.Ip == nil {
-		return nil, nil
-	}
-
-	var opts []grpc.DialOption
-	opts = append(opts, grpc.WithInsecure())
-	connStr := fmt.Sprintf("%s:%d", config.Address.Ip.Host, config.Address.Ip.Port)
-	conn, err := grpc.Dial(connStr, opts...)
-
-	if err != nil {
-		log.Printf("Error initializing proxy connection to %s: %s\n", connStr, err.Error())
-		return nil, ErrUnableToSetupProxy
-	}
-
-	log.Printf("Connected to %s\n", connStr)
-	client := pb.NewBridgeManagerClient(conn)
-
-	return NewProxyBridge(notifier, config.Id, client), nil
+	hub       *Hub
+	instances map[string]*proxyInstance
 }
 
 // NewProxyBridge creates a bridge implementation from a supplied bridge client.
-func NewProxyBridge(notifier Notifier, id string, client pb.BridgeManagerClient) *ProxyBridge {
-	ret := &ProxyBridge{
-		bn:     notifier,
-		remote: client,
-		state: &pb.Bridge{
-			Id: id,
-		},
+func NewProxyBridge(hub *Hub, conn *grpc.ClientConn) *ProxyHub {
+	return &ProxyHub{
+		hub:  hub,
+		conn: conn,
 	}
-
-	// Start watching for updates. This will populate the initial state;
-	// we just ensure that the state ID is properly set for this to take effect.
-	go ret.stateMonitor()
-
-	return ret
 }
 
-func (b *ProxyBridge) ID() string {
-	return b.state.Id
+// Run monitors the bridge and device channels for updates and propagates them to the monitors subscribed to the proxy.
+func (p *ProxyHub) Run() {
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		p.runBridgeMonitor()
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		p.runDeviceMonitor()
+	}()
+
+	wg.Wait()
 }
 
-func (b *ProxyBridge) ModelID() string {
-	return b.state.ModelId
-}
-func (b *ProxyBridge) ModelName() string {
-	return b.state.ModelName
-}
-func (b *ProxyBridge) ModelDescription() string {
-	return b.state.ModelDescription
-}
-func (b *ProxyBridge) Manufacturer() string {
-	return b.state.Manufacturer
-}
-func (b *ProxyBridge) IconURLs() []string {
-	return b.state.IconUrl
-}
-func (b *ProxyBridge) Name() string {
-	return b.state.Config.Name
-}
-func (b *ProxyBridge) SetName(name string) error {
-	return errors.New("not implemented")
-}
-
-func (b *ProxyBridge) Devices() ([]*pb.Device, error) {
-	devices := []*pb.Device{}
-	return devices, nil
-}
-
-func (b *ProxyBridge) stateMonitor() {
-	stream, err := b.remote.WatchBridges(context.Background(), &pb.WatchBridgesRequest{})
-
+func (p *ProxyHub) runBridgeMonitor() {
+	bc := pb.NewBridgeManagerClient(p.conn)
+	stream, err := bc.WatchBridges(context.Background(), &pb.WatchBridgesRequest{})
 	if err != nil {
 		return
 	}
 
-	log.Printf("Waiting for updates about bridge ID %s\n", b.state.Id)
+	for {
+		if update, err := stream.Recv(); err == nil {
+			log.Printf("Received bridge update %+v\n", update.Bridge)
+
+			switch update.Action {
+			case pb.BridgeUpdate_ADDED:
+				pi := newProxyInstance(p.conn, update.Bridge.Id)
+				if err := p.hub.AddAsyncBridge(pi); err != nil {
+					log.Printf("Error adding bridge %s: %s\n", update.Bridge.Id, err.Error())
+				}
+			case pb.BridgeUpdate_CHANGED:
+				pi, ok := p.instances[update.Bridge.Id]
+				if !ok {
+					log.Printf("Received update for %s but wasn't registered", update.Bridge.Id)
+					continue
+				}
+				if err := pi.notifier.BridgeUpdated(update.Bridge); err != nil {
+					log.Printf("Error updating bridge %s: %s\n", update.Bridge.Id, err.Error())
+				}
+			case pb.BridgeUpdate_REMOVED:
+				pi, ok := p.instances[update.Bridge.Id]
+				if !ok {
+					log.Printf("Received remove for %s but wasn't registered", update.Bridge.Id)
+					continue
+				}
+
+				if err := p.hub.RemoveBridge(pi.bridgeID); err != nil {
+					log.Printf("Error removing bridge %s: %s\n", update.Bridge.Id, err.Error())
+				}
+				delete(p.instances, pi.bridgeID)
+			}
+		} else {
+			log.Printf("Error while monitoring bridges: %s\n", err.Error())
+			return
+		}
+	}
+}
+
+func (p *ProxyHub) runDeviceMonitor() {
+	dc := pb.NewDeviceManagerClient(p.conn)
+	stream, err := dc.WatchDevices(context.Background(), &pb.WatchDevicesRequest{})
+	if err != nil {
+		return
+	}
 
 	for {
 		if update, err := stream.Recv(); err == nil {
-			// Filter out updates we don't care about
-			if update.Bridge.Id != b.state.Id {
-				log.Printf("Received update for bridge ID %s, ignoring\n", update.Bridge.Id)
-				continue
-			}
+			log.Printf("Received device update %+v\n", update.Device)
 
-			log.Printf("Received update %+v\n", update.Bridge)
-			b.state = update.Bridge
-			b.bn.BridgeUpdated(b.state)
+			switch update.Action {
+			case pb.DeviceUpdate_ADDED:
+				if err := p.hub.DeviceAdded(update.BridgeId, update.Device); err != nil {
+					log.Printf("Error adding device %v: %s\n", update.Device, err.Error())
+				}
+			case pb.DeviceUpdate_CHANGED:
+				if err := p.hub.DeviceUpdated(update.BridgeId, update.Device); err != nil {
+					log.Printf("Error updating device %v: %s\n", update.Device, err.Error())
+				}
+			case pb.DeviceUpdate_REMOVED:
+				if err := p.hub.DeviceRemoved(update.BridgeId, update.Device); err != nil {
+					log.Printf("Error removing device %v: %s\n", update.Device, err.Error())
+				}
+			}
 		} else {
+			log.Printf("Error while monitoring devices: %s\n", err.Error())
 			return
 		}
 	}

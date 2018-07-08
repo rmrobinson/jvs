@@ -12,7 +12,9 @@ import (
 
 var (
 	// ErrDeviceNotFound is returned if the requested device does not exist.
-	ErrDeviceNotFound        = status.New(codes.NotFound, "device not found")
+	ErrDeviceNotFound = status.New(codes.NotFound, "device not found")
+	// ErrNotImplemented is returned if the requested method is not yet implemented.
+	ErrNotImplemented = status.New(codes.Unimplemented, "not implemented")
 )
 
 // API is a handle to the building implementation of the device and bridge gRPC server interfaces.
@@ -95,14 +97,32 @@ func (a *API) WatchBridges(req *pb.WatchBridgesRequest, stream pb.BridgeManager_
 }
 
 // GetDevices retrieves all registered devices.
-func (a *API) GetDevices(context.Context, *pb.GetDevicesRequest) (*pb.GetDevicesResponse, error) {
+func (a *API) GetDevices(ctx context.Context, req *pb.GetDevicesRequest) (*pb.GetDevicesResponse, error) {
 	resp := &pb.GetDevicesResponse{}
-	for _, device := range a.hub.Devices() {
+
+	var devices []*pb.Device
+	if len(req.BridgeId) > 0 {
+		var err error
+		devices, err = a.hub.DevicesOnBridge(req.BridgeId)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		devices = a.hub.Devices()
+	}
+
+	for _, device := range devices {
 		resp.Devices = append(resp.Devices, device)
 	}
 
 	return resp, nil
 }
+
+// GetAvailableDevices returns the list of devices available for use but haven't been added yet.
+func (a *API) GetAvailableDevices(context.Context, *pb.GetDevicesRequest) (*pb.GetDevicesResponse, error) {
+	return nil, ErrNotImplemented.Err()
+}
+
 // GetDevice retrieves the specified device.
 func (a *API) GetDevice(ctx context.Context, req *pb.GetDeviceRequest) (*pb.GetDeviceResponse, error) {
 	for _, device := range a.hub.Devices() {
@@ -115,6 +135,7 @@ func (a *API) GetDevice(ctx context.Context, req *pb.GetDeviceRequest) (*pb.GetD
 
 	return nil, ErrDeviceNotFound.Err()
 }
+
 // SetDeviceConfig updates the specified device with the provided config.
 func (a *API) SetDeviceConfig(ctx context.Context, req *pb.SetDeviceConfigRequest) (*pb.SetDeviceConfigResponse, error) {
 	resp, err := a.hub.SetDeviceConfig(ctx, req.Id, req.Config)
@@ -123,6 +144,7 @@ func (a *API) SetDeviceConfig(ctx context.Context, req *pb.SetDeviceConfigReques
 		Device: resp,
 	}, err
 }
+
 // SetDeviceState updates the specified device with the provided state.
 func (a *API) SetDeviceState(ctx context.Context, req *pb.SetDeviceStateRequest) (*pb.SetDeviceStateResponse, error) {
 	resp, err := a.hub.SetDeviceState(ctx, req.Id, req.State)
@@ -131,6 +153,7 @@ func (a *API) SetDeviceState(ctx context.Context, req *pb.SetDeviceStateRequest)
 		Device: resp,
 	}, err
 }
+
 // WatchDevices monitors changes for all devices tied to the hub.
 func (a *API) WatchDevices(req *pb.WatchDevicesRequest, stream pb.DeviceManager_WatchDevicesServer) error {
 	peer, isOk := peer.FromContext(stream.Context())

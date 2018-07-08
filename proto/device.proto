@@ -109,6 +109,7 @@ message Device {
 }
 
 message GetDevicesRequest {
+    string bridge_id = 1;
 }
 message GetDevicesResponse {
     repeated Device devices = 1;
@@ -132,6 +133,7 @@ message DeviceUpdate {
 
         Action action = 1;
         Device device = 2;
+        string bridge_id = 3;
 }
 
 message SetDeviceConfigRequest {
@@ -157,7 +159,7 @@ message SetDeviceStateResponse {
 service DeviceManager {
     rpc GetDevices(GetDevicesRequest) returns (GetDevicesResponse) {}
 
-//    rpc GetAvailableDevices(GetDevicesRequest) returns (GetDevicesResponse) {}
+    rpc GetAvailableDevices(GetDevicesRequest) returns (GetDevicesResponse) {}
 
     rpc GetDevice(GetDeviceRequest) returns (GetDeviceResponse) {}
 

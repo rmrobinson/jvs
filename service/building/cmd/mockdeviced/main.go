@@ -18,7 +18,6 @@ func main() {
 	var (
 		port = flag.Int("port", 1337, "The port for the deviced process to listen on")
 	)
-
 	flag.Parse()
 
 	bm := building.NewHub()
@@ -44,6 +43,6 @@ func main() {
 	pb.RegisterBridgeManagerServer(grpcServer, api)
 	pb.RegisterDeviceManagerServer(grpcServer, api)
 
-	fmt.Printf("Listening on :%d\n", *port)
+	log.Printf("Listening on :%d\n", *port)
 	grpcServer.Serve(lis)
 }

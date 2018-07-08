@@ -16,13 +16,13 @@ var (
 	// ErrBridgeAlreadyRegistered is returned if the specified bridge ID has already been registered.
 	ErrBridgeAlreadyRegistered = errors.New("bridge already registered")
 	// ErrBridgeNotRegistered is returned if the specified bridge ID has not been registered yet.
-	ErrBridgeNotRegistered     = errors.New("bridge not registered")
+	ErrBridgeNotRegistered = errors.New("bridge not registered")
 	// ErrDeviceAlreadyRegistered is returned if the specified device ID has already been registered.
 	ErrDeviceAlreadyRegistered = errors.New("device already registered")
 	// ErrDeviceNotRegistered is returned if the specified device ID has not been registered yet.
-	ErrDeviceNotRegistered     = errors.New("device not registered")
+	ErrDeviceNotRegistered = errors.New("device not registered")
 	// ErrNilArgument is returned if the specified argument is nil but that is not supported.
-	ErrNilArgument             = errors.New("nil argument")
+	ErrNilArgument = errors.New("nil argument")
 )
 
 // Bridge is an interface to a set of capabilities a device bridge must support.
@@ -108,6 +108,24 @@ func (h *Hub) Devices() []*pb.Device {
 	return ret
 }
 
+// DevicesOnBridge return the devices configured on the requested bridge. If the bridge is missing an error is returned.
+func (h *Hub) DevicesOnBridge(bridgeID string) ([]*pb.Device, error) {
+	h.bridgesLock.RLock()
+	defer h.bridgesLock.RUnlock()
+
+	var ret []*pb.Device
+	b, ok := h.bridges[bridgeID]
+
+	if !ok {
+		return nil, ErrBridgeNotRegistered
+	}
+
+	for _, d := range b.devices {
+		ret = append(ret, d)
+	}
+	return ret, nil
+}
+
 // SetBridgeConfig updates the configuration of the specified bridge.
 func (h *Hub) SetBridgeConfig(ctx context.Context, id string, config *pb.BridgeConfig) (*pb.Bridge, error) {
 	var bi *bridgeInstance
@@ -127,7 +145,7 @@ func (h *Hub) SetBridgeConfig(ctx context.Context, id string, config *pb.BridgeC
 
 	// Propagate this update.
 	// Since we don't have the full bridge we need to clone our current and update the state.
-	b:= proto.Clone(bi.bridge).(*pb.Bridge)
+	b := proto.Clone(bi.bridge).(*pb.Bridge)
 	b.Config = config
 	h.BridgeUpdated(b)
 
@@ -308,7 +326,7 @@ func (h *Hub) DeviceAdded(bridgeID string, device *pb.Device) error {
 		}
 
 		nd := proto.Clone(device).(*pb.Device)
-		h.sendDeviceUpdate(pb.DeviceUpdate_ADDED, nd)
+		h.sendDeviceUpdate(pb.DeviceUpdate_ADDED, bridgeID, nd)
 		h.bridges[bridgeID].devices[device.Id] = nd
 	} else {
 		return ErrBridgeNotRegistered
@@ -333,7 +351,7 @@ func (h *Hub) DeviceUpdated(bridgeID string, device *pb.Device) error {
 		if currDevice, ok := bridge.devices[device.Id]; ok {
 			if !reflect.DeepEqual(currDevice, device) {
 				nd := proto.Clone(device).(*pb.Device)
-				h.sendDeviceUpdate(pb.DeviceUpdate_CHANGED, nd)
+				h.sendDeviceUpdate(pb.DeviceUpdate_CHANGED, bridgeID, nd)
 				h.bridges[bridgeID].devices[device.Id] = nd
 			}
 		} else {
@@ -363,7 +381,7 @@ func (h *Hub) DeviceRemoved(bridgeID string, device *pb.Device) error {
 			return ErrDeviceNotRegistered
 		}
 
-		h.sendDeviceUpdate(pb.DeviceUpdate_REMOVED, device)
+		h.sendDeviceUpdate(pb.DeviceUpdate_REMOVED, bridgeID, device)
 		delete(h.bridges[bridgeID].devices, device.Id)
 	} else {
 		return ErrBridgeNotRegistered
@@ -373,7 +391,7 @@ func (h *Hub) DeviceRemoved(bridgeID string, device *pb.Device) error {
 }
 
 // sendDeviceUpdate is the internal function that takes a notification and propagates it to all registered watchers.
-func (h *Hub) sendDeviceUpdate(action pb.DeviceUpdate_Action, device *pb.Device) {
+func (h *Hub) sendDeviceUpdate(action pb.DeviceUpdate_Action, bridgeID string, device *pb.Device) {
 	h.dw.Lock()
 	defer h.dw.Unlock()
 
@@ -386,12 +404,13 @@ func (h *Hub) sendDeviceUpdate(action pb.DeviceUpdate_Action, device *pb.Device)
 
 		// We perform this in a separate goroutine in case the watcher has not yet finished processing
 		// a previously-received message (if, for example, the remote side is timing out).
-		go func() {
-			watcher.updates <- &pb.DeviceUpdate{
-				Action: action,
-				Device: device,
+		go func(w *deviceWatcher) {
+			w.updates <- &pb.DeviceUpdate{
+				Action:   action,
+				Device:   device,
+				BridgeId: bridgeID,
 			}
-		}()
+		}(watcher)
 	}
 }
 
@@ -400,8 +419,6 @@ func (h *Hub) sendBridgeUpdate(action pb.BridgeUpdate_Action, bridge *pb.Bridge)
 	h.bw.Lock()
 	defer h.bw.Unlock()
 
-	log.Printf("Bridge changed: %+v\n", bridge)
-
 	for watcher, active := range h.bw.watchers {
 		if !active {
 			continue
@@ -409,11 +426,11 @@ func (h *Hub) sendBridgeUpdate(action pb.BridgeUpdate_Action, bridge *pb.Bridge)
 
 		// We perform this in a separate goroutine in case the watcher has not yet finished processing
 		// a previously-received message (if, for example, the remote side is timing out).
-		go func() {
-			watcher.updates <- &pb.BridgeUpdate{
+		go func(w *bridgeWatcher) {
+			w.updates <- &pb.BridgeUpdate{
 				Action: action,
 				Bridge: bridge,
 			}
-		}()
+		}(watcher)
 	}
 }

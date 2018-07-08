@@ -43,7 +43,6 @@ func setBridgeName(bc pb.BridgeManagerClient, id string, name string) {
 	fmt.Printf("%+v\n", setResp.Bridge)
 }
 
-
 func getDevices(dc pb.DeviceManagerClient) {
 	getResp, err := dc.GetDevices(context.Background(), &pb.GetDevicesRequest{})
 	if err != nil {
@@ -61,7 +60,7 @@ func setDeviceName(dc pb.DeviceManagerClient, id string, name string) {
 	req := &pb.SetDeviceConfigRequest{
 		Id: id,
 		Config: &pb.DeviceConfig{
-			Name: name,
+			Name:        name,
 			Description: "Manually set",
 		},
 	}
@@ -86,7 +85,7 @@ func setDeviceIsOn(dc pb.DeviceManagerClient, id string, isOn bool) {
 
 	d.Device.State.Binary.IsOn = isOn
 	req := &pb.SetDeviceStateRequest{
-		Id: id,
+		Id:    id,
 		State: d.Device.State,
 	}
 
@@ -142,9 +141,9 @@ func main() {
 	var (
 		addr = flag.String("addr", "", "The address to connect to")
 		mode = flag.String("mode", "", "The mode of operation for the client")
-		id = flag.String("id", "", "The device ID to change")
+		id   = flag.String("id", "", "The device ID to change")
 		name = flag.String("name", "", "The device name to set")
-		on = flag.Bool("on", false, "The device ison state to set")
+		on   = flag.Bool("on", false, "The device ison state to set")
 	)
 
 	flag.Parse()
