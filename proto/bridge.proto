@@ -101,11 +101,11 @@ message GetBridgesRequest {
 message GetBridgesResponse {
     repeated Bridge bridges = 1;
 }
-message UpdateBridgeRequest {
+message SetBridgeConfigRequest {
     string id = 1;
     BridgeConfig config = 10;
 }
-message UpdateBridgeResponse {
+message SetBridgeConfigResponse {
     Bridge bridge = 1;
 }
 
@@ -124,6 +124,6 @@ message BridgeUpdate {
 
 service BridgeManager {
     rpc GetBridges(GetBridgesRequest) returns (GetBridgesResponse) {}
-    rpc UpdateBridge(UpdateBridgeRequest) returns (UpdateBridgeResponse) {}
+    rpc SetBridgeConfig(SetBridgeConfigRequest) returns (SetBridgeConfigResponse) {}
     rpc WatchBridges(WatchBridgesRequest) returns (stream BridgeUpdate) {}
 }

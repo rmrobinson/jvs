@@ -1,7 +1,6 @@
 package building
 
 import (
-	"errors"
 	"log"
 
 	"github.com/rmrobinson/jvs/service/building/pb"
@@ -12,23 +11,23 @@ import (
 )
 
 var (
-	ErrNotImplemented        = status.New(codes.Unimplemented, "not implemented")
-	ErrBridgeTypeUndefined   = status.New(codes.InvalidArgument, "bridge type must be specified to create")
-	ErrBridgeTypeUnsupported = status.New(codes.InvalidArgument, "bridge type cannot be created manually")
-	ErrBridgeConfigInvalid   = status.New(codes.InvalidArgument, "bridge config is not supported for requested type")
+	// ErrDeviceNotFound is returned if the requested device does not exist.
 	ErrDeviceNotFound        = status.New(codes.NotFound, "device not found")
 )
 
+// API is a handle to the building implementation of the device and bridge gRPC server interfaces.
 type API struct {
 	hub *Hub
 }
 
+// NewAPI creates a new API backed by the supplied hub implementation.
 func NewAPI(hub *Hub) *API {
 	return &API{
 		hub: hub,
 	}
 }
 
+// GetBridges retrieves the bridges configured on the hub.
 func (a *API) GetBridges(ctx context.Context, req *pb.GetBridgesRequest) (*pb.GetBridgesResponse, error) {
 	resp := &pb.GetBridgesResponse{}
 	for _, bridge := range a.hub.Bridges() {
@@ -38,10 +37,16 @@ func (a *API) GetBridges(ctx context.Context, req *pb.GetBridgesRequest) (*pb.Ge
 	return resp, nil
 }
 
-func (a *API) UpdateBridge(context.Context, *pb.UpdateBridgeRequest) (*pb.UpdateBridgeResponse, error) {
-	return nil, errors.New("not implemented")
+// SetBridgeConfig saves a new bridge configuration on the specified bridge.
+func (a *API) SetBridgeConfig(ctx context.Context, req *pb.SetBridgeConfigRequest) (*pb.SetBridgeConfigResponse, error) {
+	resp, err := a.hub.SetBridgeConfig(ctx, req.Id, req.Config)
+
+	return &pb.SetBridgeConfigResponse{
+		Bridge: resp,
+	}, err
 }
 
+// WatchBridges monitors the hub and propagates any bridge change updates to registered listeners.
 func (a *API) WatchBridges(req *pb.WatchBridgesRequest, stream pb.BridgeManager_WatchBridgesServer) error {
 	peer, isOk := peer.FromContext(stream.Context())
 
@@ -89,6 +94,7 @@ func (a *API) WatchBridges(req *pb.WatchBridgesRequest, stream pb.BridgeManager_
 	return nil
 }
 
+// GetDevices retrieves all registered devices.
 func (a *API) GetDevices(context.Context, *pb.GetDevicesRequest) (*pb.GetDevicesResponse, error) {
 	resp := &pb.GetDevicesResponse{}
 	for _, device := range a.hub.Devices() {
@@ -97,6 +103,7 @@ func (a *API) GetDevices(context.Context, *pb.GetDevicesRequest) (*pb.GetDevices
 
 	return resp, nil
 }
+// GetDevice retrieves the specified device.
 func (a *API) GetDevice(ctx context.Context, req *pb.GetDeviceRequest) (*pb.GetDeviceResponse, error) {
 	for _, device := range a.hub.Devices() {
 		if device.Id == req.Id {
@@ -108,6 +115,7 @@ func (a *API) GetDevice(ctx context.Context, req *pb.GetDeviceRequest) (*pb.GetD
 
 	return nil, ErrDeviceNotFound.Err()
 }
+// SetDeviceConfig updates the specified device with the provided config.
 func (a *API) SetDeviceConfig(ctx context.Context, req *pb.SetDeviceConfigRequest) (*pb.SetDeviceConfigResponse, error) {
 	resp, err := a.hub.SetDeviceConfig(ctx, req.Id, req.Config)
 
@@ -115,6 +123,7 @@ func (a *API) SetDeviceConfig(ctx context.Context, req *pb.SetDeviceConfigReques
 		Device: resp,
 	}, err
 }
+// SetDeviceState updates the specified device with the provided state.
 func (a *API) SetDeviceState(ctx context.Context, req *pb.SetDeviceStateRequest) (*pb.SetDeviceStateResponse, error) {
 	resp, err := a.hub.SetDeviceState(ctx, req.Id, req.State)
 
@@ -122,6 +131,7 @@ func (a *API) SetDeviceState(ctx context.Context, req *pb.SetDeviceStateRequest)
 		Device: resp,
 	}, err
 }
+// WatchDevices monitors changes for all devices tied to the hub.
 func (a *API) WatchDevices(req *pb.WatchDevicesRequest, stream pb.DeviceManager_WatchDevicesServer) error {
 	peer, isOk := peer.FromContext(stream.Context())
 

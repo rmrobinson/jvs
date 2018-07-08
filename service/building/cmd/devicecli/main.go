@@ -25,6 +25,25 @@ func getBridges(bc pb.BridgeManagerClient) {
 	}
 }
 
+func setBridgeName(bc pb.BridgeManagerClient, id string, name string) {
+	req := &pb.SetBridgeConfigRequest{
+		Id: id,
+		Config: &pb.BridgeConfig{
+			Name: name,
+		},
+	}
+
+	setResp, err := bc.SetBridgeConfig(context.Background(), req)
+	if err != nil {
+		fmt.Printf("Unable to set bridge name: %s\n", err.Error())
+		return
+	}
+
+	fmt.Printf("Set bridge name\n")
+	fmt.Printf("%+v\n", setResp.Bridge)
+}
+
+
 func getDevices(dc pb.DeviceManagerClient) {
 	getResp, err := dc.GetDevices(context.Background(), &pb.GetDevicesRequest{})
 	if err != nil {
@@ -145,6 +164,8 @@ func main() {
 	switch *mode {
 	case "getBridges":
 		getBridges(bridgeClient)
+	case "setBridgeConfig":
+		setBridgeName(bridgeClient, *id, *name)
 	case "getDevices":
 		getDevices(deviceClient)
 	case "setDeviceConfig":

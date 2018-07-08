@@ -27,7 +27,7 @@ type ProxyBridge struct {
 // SetupNewProxyBridge creates a new proxy bridge using the specified bridge configuration.
 func SetupNewProxyBridge(config *pb.BridgeConfig, notifier Notifier) (*ProxyBridge, error) {
 	if config.Address.Ip == nil {
-		return nil, ErrBridgeConfigInvalid.Err()
+		return nil, nil
 	}
 
 	var opts []grpc.DialOption

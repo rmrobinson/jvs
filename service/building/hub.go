@@ -13,10 +13,15 @@ import (
 )
 
 var (
+	// ErrBridgeAlreadyRegistered is returned if the specified bridge ID has already been registered.
 	ErrBridgeAlreadyRegistered = errors.New("bridge already registered")
+	// ErrBridgeNotRegistered is returned if the specified bridge ID has not been registered yet.
 	ErrBridgeNotRegistered     = errors.New("bridge not registered")
+	// ErrDeviceAlreadyRegistered is returned if the specified device ID has already been registered.
 	ErrDeviceAlreadyRegistered = errors.New("device already registered")
+	// ErrDeviceNotRegistered is returned if the specified device ID has not been registered yet.
 	ErrDeviceNotRegistered     = errors.New("device not registered")
+	// ErrNilArgument is returned if the specified argument is nil but that is not supported.
 	ErrNilArgument             = errors.New("nil argument")
 )
 
@@ -77,6 +82,7 @@ func NewHub() *Hub {
 	}
 }
 
+// Bridges retrieves all registered and available bridges on this hub.
 func (h *Hub) Bridges() []*pb.Bridge {
 	h.bridgesLock.RLock()
 	defer h.bridgesLock.RUnlock()
@@ -88,6 +94,7 @@ func (h *Hub) Bridges() []*pb.Bridge {
 	return ret
 }
 
+// Devices retrieves all devices managed by the registered bridges.
 func (h *Hub) Devices() []*pb.Device {
 	h.bridgesLock.RLock()
 	defer h.bridgesLock.RUnlock()
@@ -101,6 +108,35 @@ func (h *Hub) Devices() []*pb.Device {
 	return ret
 }
 
+// SetBridgeConfig updates the configuration of the specified bridge.
+func (h *Hub) SetBridgeConfig(ctx context.Context, id string, config *pb.BridgeConfig) (*pb.Bridge, error) {
+	var bi *bridgeInstance
+	if b, ok := h.bridges[id]; ok {
+		bi = b
+	}
+
+	if bi == nil {
+		return nil, ErrBridgeNotRegistered
+	}
+
+	err := bi.bridgeHandle.SetBridgeConfig(ctx, config)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Propagate this update.
+	// Since we don't have the full bridge we need to clone our current and update the state.
+	b:= proto.Clone(bi.bridge).(*pb.Bridge)
+	b.Config = config
+	h.BridgeUpdated(b)
+
+	return b, nil
+
+}
+
+// SetDeviceConfig updates the configuration of the specified device.
+// This should be treated as an all-or-nothing operation - partial application of device configs is not supported.
 func (h *Hub) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceConfig) (*pb.Device, error) {
 	h.bridgesLock.RLock()
 	defer h.bridgesLock.RUnlock()
@@ -132,6 +168,8 @@ func (h *Hub) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceC
 	return d, nil
 }
 
+// SetDeviceState updates the state of the specified device.
+// This should be treated as an all-or-nothing operation - partial application of device state is not supported.
 func (h *Hub) SetDeviceState(ctx context.Context, id string, state *pb.DeviceState) (*pb.Device, error) {
 	h.bridgesLock.RLock()
 	defer h.bridgesLock.RUnlock()
@@ -162,8 +200,9 @@ func (h *Hub) SetDeviceState(ctx context.Context, id string, state *pb.DeviceSta
 	return d, nil
 }
 
-// AddBridge adds a pre-configured bridge into the collection of managed bridges.
-// This will signal outwards that this bridge collection has been updated.
+// AddBridge adds a pre-configured bridge into the collection of managed bridges. The bridge will be queried for updates
+// of both itself and its devices at the specified refresh rate (current floor is 1s)
+// This will signal outwards that this bridge collection has been updated if the periodic refresh detects changes.
 func (h *Hub) AddBridge(b Bridge, refreshRate time.Duration) error {
 	bi, err := h.addBridgeInstance(b)
 	if err != nil {
@@ -180,6 +219,8 @@ func (h *Hub) AddBridge(b Bridge, refreshRate time.Duration) error {
 	return nil
 }
 
+// AddAsyncBridge adds a pre-configured bridge into the collection of managed bridges. This bridge will not be queried
+// for updates, it is assumed that the implementation will use the set notifier to let the hub know when things change.
 func (h *Hub) AddAsyncBridge(b AsyncBridge) error {
 	if _, err := h.addBridgeInstance(b); err != nil {
 		return err
@@ -211,6 +252,7 @@ func (h *Hub) addBridgeInstance(b Bridge) (*bridgeInstance, error) {
 	return bi, nil
 }
 
+// RemoveBridge will remove the specified bridge.
 func (h *Hub) RemoveBridge(id string) error {
 	h.bridgesLock.Lock()
 	h.bridgesLock.Unlock()
@@ -228,6 +270,7 @@ func (h *Hub) RemoveBridge(id string) error {
 	return nil
 }
 
+// BridgeUpdated can be used by async bridges to notify that the specified bridge has changed.
 func (h *Hub) BridgeUpdated(bridge *pb.Bridge) error {
 	if bridge == nil {
 		return ErrNilArgument
@@ -247,7 +290,12 @@ func (h *Hub) BridgeUpdated(bridge *pb.Bridge) error {
 	return nil
 }
 
+// DeviceAdded can be used by async bridges to notify that a new device is available on the specified bridge.
 func (h *Hub) DeviceAdded(bridgeID string, device *pb.Device) error {
+	if device == nil {
+		return ErrNilArgument
+	}
+
 	h.bridgesLock.RLock()
 	defer h.bridgesLock.RUnlock()
 
@@ -269,7 +317,12 @@ func (h *Hub) DeviceAdded(bridgeID string, device *pb.Device) error {
 	return nil
 }
 
+// DeviceUpdated can be used by async bridges to notify that a device change has been detected on the specified bridge.
 func (h *Hub) DeviceUpdated(bridgeID string, device *pb.Device) error {
+	if device == nil {
+		return ErrNilArgument
+	}
+
 	h.bridgesLock.RLock()
 	defer h.bridgesLock.RUnlock()
 
@@ -293,7 +346,12 @@ func (h *Hub) DeviceUpdated(bridgeID string, device *pb.Device) error {
 	return nil
 }
 
+// DeviceRemoved can be used by async bridges to notify that a device is no longer available on the specified bridge.
 func (h *Hub) DeviceRemoved(bridgeID string, device *pb.Device) error {
+	if device == nil {
+		return ErrNilArgument
+	}
+
 	h.bridgesLock.RLock()
 	defer h.bridgesLock.RUnlock()
 
