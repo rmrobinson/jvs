@@ -16,32 +16,36 @@ import (
 
 func main() {
 	var (
-		port = flag.Int("port", 1337, "The port for the mockdeviced process to listen on")
-		dbPath = flag.String("dbPath", "/tmp/mockbridge.db", "The FS path to read for the mock bridge")
+		port   = flag.Int("port", 1337, "The port for the mockdeviced process to listen on")
+		dbPath = flag.String("dbPath", "", "The FS path to read for the mock bridge (used if supplied)")
 	)
 	flag.Parse()
 
 	bm := building.NewHub()
 
-//	msb := mock.NewSyncBridge()
-//	bm.AddBridge(msb, 5*time.Second)
-//	go msb.Run()
+	// If we have a persistent bridge, use it.
+	// Otherwise use some randomly generated data.
+	if len(*dbPath) > 0 {
+		db := &building.BridgeDB{}
+		err := db.Open(*dbPath)
+		if err != nil {
+			log.Printf("Error opening db path %s: %s\n", *dbPath, err.Error())
+			os.Exit(1)
+		}
+		defer db.Close()
 
-//	mab := mock.NewAsyncBridge()
-//	bm.AddAsyncBridge(mab)
-//	go mab.Run()
+		pbb := mock.NewPersistentBridge(db)
+		bm.AddBridge(pbb, time.Hour)
+		go pbb.Run()
+	} else {
+		msb := mock.NewSyncBridge()
+		bm.AddBridge(msb, 5*time.Second)
+		go msb.Run()
 
-	db := &building.BridgeDB{}
-	err := db.Open(*dbPath)
-	if err != nil {
-		log.Printf("Error opening db path %s: %s\n", *dbPath, err.Error())
-		os.Exit(1)
+		mab := mock.NewAsyncBridge()
+		bm.AddAsyncBridge(mab)
+		go mab.Run()
 	}
-	defer db.Close()
-
-	pbb := mock.NewPersistentBridge(db)
-	bm.AddBridge(pbb, time.Hour)
-	go pbb.Run()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {

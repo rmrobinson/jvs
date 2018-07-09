@@ -19,7 +19,7 @@ const (
 var (
 	// ErrUnableToSetupBottlerocket is returned if the supplied bridge configuration fails to properly initialize bottlerocket.
 	ErrUnableToSetupBottlerocket = errors.New("unable to set up bottlerocket")
-	ErrUnableToSetupMonopAmp = errors.New("unable to set up monoprice amp")
+	ErrUnableToSetupMonopAmp     = errors.New("unable to set up monoprice amp")
 )
 
 func setupBottlerocket(config *pb.BridgeConfig) (building.Bridge, error) {

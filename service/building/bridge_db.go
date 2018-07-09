@@ -33,7 +33,7 @@ type BridgePersister interface {
 // Some bridges may not be able to persist everything we expect, and this layer allows for implementations
 // to back certain operations by the bridge and persist the rest in a consistent way.
 type BridgeDB struct {
-	db *sql.DB
+	db       *sql.DB
 	bridgeID string
 }
 
@@ -172,7 +172,7 @@ func (db *BridgeDB) devicesCustomQuery(ctx context.Context, query string) ([]*pb
 	for rows.Next() {
 		d := &pb.Device{
 			Config: &pb.DeviceConfig{},
-			State: &pb.DeviceState{},
+			State:  &pb.DeviceState{},
 		}
 
 		isBinary := false
@@ -202,17 +202,20 @@ func (db *BridgeDB) devicesCustomQuery(ctx context.Context, query string) ([]*pb
 func (db *BridgeDB) SearchForAvailableDevices(context.Context) error {
 	return ErrNotSupported
 }
+
 // AvailableDevices returns any devices created that are currently available.
 func (db *BridgeDB) AvailableDevices(ctx context.Context) ([]*pb.Device, error) {
 	return db.devicesCustomQuery(ctx, "WHERE is_available=1")
 }
+
 // Devices returns any devices created that are in use.
 func (db *BridgeDB) Devices(ctx context.Context) ([]*pb.Device, error) {
 	return db.devicesCustomQuery(ctx, "WHERE is_available=0")
 }
+
 // Device returns the requested device, if present.
 func (db *BridgeDB) Device(ctx context.Context, id string) (*pb.Device, error) {
-	ret, err := db.devicesCustomQuery(ctx, "WHERE id=" + id)
+	ret, err := db.devicesCustomQuery(ctx, "WHERE id="+id)
 	if err != nil {
 		return nil, err
 	} else if len(ret) < 1 {
@@ -299,6 +302,7 @@ func (db *BridgeDB) SetDeviceConfig(ctx context.Context, dev *pb.Device, config 
 	return err
 
 }
+
 // SetDeviceState persists the available state options (isOn, range value) to the database.
 func (db *BridgeDB) SetDeviceState(ctx context.Context, dev *pb.Device, state *pb.DeviceState) error {
 	isBinary := false

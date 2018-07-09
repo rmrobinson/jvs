@@ -14,20 +14,21 @@ import (
 )
 
 var (
-	maxZoneID = 6
+	maxZoneID          = 6
 	baseMonopAmpBridge = &pb.Bridge{
-		ModelId: "10761",
-		ModelName: "Monoprice Amp",
+		ModelId:          "10761",
+		ModelName:        "Monoprice Amp",
 		ModelDescription: "6 Zone Home Audio Multizone Controller",
-		Manufacturer: "Monoprice",
+		Manufacturer:     "Monoprice",
 	}
 	baseMonopAmpDevice = &pb.Device{
-		ModelId: "10761",
-		ModelName: "Zone",
+		ModelId:          "10761",
+		ModelName:        "Zone",
 		ModelDescription: "Monoprice Amp Zone",
-		Manufacturer: "Monoprice",
+		Manufacturer:     "Monoprice",
 	}
 )
+
 // MonopAmpBridge is an implementation of a bridge for the Monoprice amp/stero output device.
 type MonopAmpBridge struct {
 	amp *monopamp.SerialAmplifier
@@ -38,7 +39,7 @@ type MonopAmpBridge struct {
 // NewMonopAmpBridge takes a previously set up MonopAmp handle and exposes it as a MonopAmp bridge.
 func NewMonopAmpBridge(amp *monopamp.SerialAmplifier, persister building.BridgePersister) *MonopAmpBridge {
 	ret := &MonopAmpBridge{
-		amp: amp,
+		amp:       amp,
 		persister: persister,
 	}
 
@@ -47,20 +48,20 @@ func NewMonopAmpBridge(amp *monopamp.SerialAmplifier, persister building.BridgeP
 
 func (b *MonopAmpBridge) setup(ctx context.Context) error {
 	// Populate the devices
-		for zoneID := 1; zoneID <= maxZoneID; zoneID++ {
-			d := &pb.Device{
-				// Id is populated by CreateDevice
-				IsActive: true,
-				Address: fmt.Sprintf("/zone/%d", zoneID),
-				Config: &pb.DeviceConfig{
-					Name: fmt.Sprintf("Amp Zone %d", zoneID),
-					Description: "Amplifier output for the specified zone",
-				},
-			}
-			proto.Merge(d, baseMonopAmpDevice)
-			if err := b.persister.CreateDevice(ctx, d); err != nil {
-				return err
-			}
+	for zoneID := 1; zoneID <= maxZoneID; zoneID++ {
+		d := &pb.Device{
+			// Id is populated by CreateDevice
+			IsActive: true,
+			Address:  fmt.Sprintf("/zone/%d", zoneID),
+			Config: &pb.DeviceConfig{
+				Name:        fmt.Sprintf("Amp Zone %d", zoneID),
+				Description: "Amplifier output for the specified zone",
+			},
+		}
+		proto.Merge(d, baseMonopAmpDevice)
+		if err := b.persister.CreateDevice(ctx, d); err != nil {
+			return err
+		}
 	}
 
 	return nil

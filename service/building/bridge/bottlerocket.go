@@ -12,13 +12,13 @@ import (
 )
 
 var (
-	houses = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"}
-	maxDeviceID = 16
+	houses        = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P"}
+	maxDeviceID   = 16
 	baseX10Bridge = &pb.Bridge{
-		ModelId: "CM17A",
-		ModelName: "Firecracker",
+		ModelId:          "CM17A",
+		ModelName:        "Firecracker",
 		ModelDescription: "Serial-X10 bridge",
-		Manufacturer: "x10.com",
+		Manufacturer:     "x10.com",
 		State: &pb.BridgeState{
 			IsPaired: true,
 			Version: &pb.BridgeState_Version{
@@ -28,10 +28,10 @@ var (
 		},
 	}
 	baseX10Device = &pb.Device{
-		ModelId: "1",
-		ModelName: "X10 Wall Unit",
+		ModelId:          "1",
+		ModelName:        "X10 Wall Unit",
 		ModelDescription: "Plug-in X10 control unit",
-		Manufacturer: "x10.com",
+		Manufacturer:     "x10.com",
 	}
 )
 
@@ -45,7 +45,7 @@ type BottlerocketBridge struct {
 // NewBottlerocketBridge takes a previously set up bottlerocket handle and exposes it as a bottlerocket bridge.
 func NewBottlerocketBridge(bridge *br.Bottlerocket, persister building.BridgePersister) *BottlerocketBridge {
 	return &BottlerocketBridge{
-		br: bridge,
+		br:        bridge,
 		persister: persister,
 	}
 }
@@ -57,9 +57,9 @@ func (b *BottlerocketBridge) setup(ctx context.Context) error {
 			d := &pb.Device{
 				// Id is populated by CreateDevice
 				IsActive: false,
-				Address: fmt.Sprintf("/x10/%s%d", houseID, deviceID),
+				Address:  fmt.Sprintf("/x10/%s%d", houseID, deviceID),
 				Config: &pb.DeviceConfig{
-					Name: "X10 device",
+					Name:        "X10 device",
 					Description: "Basic X10 device",
 				},
 				State: &pb.DeviceState{

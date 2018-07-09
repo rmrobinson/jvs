@@ -19,15 +19,15 @@ var (
 		Manufacturer:     "Faltung Systems",
 	}
 	basePersistentDevice = &pb.Device{
-		ModelId: "PBDevice1",
-		ModelName: "Test Persistent Device",
+		ModelId:          "PBDevice1",
+		ModelName:        "Test Persistent Device",
 		ModelDescription: "Device for testing persistent operations",
-		Manufacturer: "Faltung Systems",
+		Manufacturer:     "Faltung Systems",
 	}
 )
 
 type PersistentBridge struct {
-	bridgeID string
+	bridgeID  string
 	persister building.BridgePersister
 }
 
