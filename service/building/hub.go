@@ -36,8 +36,8 @@ type Bridge interface {
 	Devices(context.Context) ([]*pb.Device, error)
 	Device(context.Context, string) (*pb.Device, error)
 
-	SetDeviceConfig(context.Context, string, *pb.DeviceConfig) error
-	SetDeviceState(context.Context, string, *pb.DeviceState) error
+	SetDeviceConfig(context.Context, *pb.Device, *pb.DeviceConfig) error
+	SetDeviceState(context.Context, *pb.Device, *pb.DeviceState) error
 	AddDevice(context.Context, string) error
 	DeleteDevice(context.Context, string) error
 
@@ -171,7 +171,7 @@ func (h *Hub) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceC
 		return nil, ErrDeviceNotRegistered
 	}
 
-	err := bi.bridgeHandle.SetDeviceConfig(ctx, id, config)
+	err := bi.bridgeHandle.SetDeviceConfig(ctx, bi.devices[id], config)
 
 	if err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func (h *Hub) SetDeviceState(ctx context.Context, id string, state *pb.DeviceSta
 		return nil, ErrDeviceNotRegistered
 	}
 
-	err := bi.bridgeHandle.SetDeviceState(ctx, id, state)
+	err := bi.bridgeHandle.SetDeviceState(ctx, bi.devices[id], state)
 	if err != nil {
 		return nil, err
 	}

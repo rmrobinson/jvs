@@ -105,20 +105,20 @@ func (ab *AsyncBridge) Device(ctx context.Context, id string) (*pb.Device, error
 	return nil, ErrDeviceNotPresent
 }
 
-func (ab *AsyncBridge) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceConfig) error {
+func (ab *AsyncBridge) SetDeviceConfig(ctx context.Context, dev *pb.Device, config *pb.DeviceConfig) error {
 	var d *device
 	var ok bool
-	if d, ok = ab.devices[id]; !ok {
+	if d, ok = ab.devices[dev.Id]; !ok {
 		return ErrDeviceNotPresent
 	}
 
 	d.d.Config = proto.Clone(config).(*pb.DeviceConfig)
 	return nil
 }
-func (ab *AsyncBridge) SetDeviceState(ctx context.Context, id string, state *pb.DeviceState) error {
+func (ab *AsyncBridge) SetDeviceState(ctx context.Context, dev *pb.Device, state *pb.DeviceState) error {
 	var d *device
 	var ok bool
-	if d, ok = ab.devices[id]; !ok {
+	if d, ok = ab.devices[dev.Id]; !ok {
 		return ErrDeviceNotPresent
 	}
 

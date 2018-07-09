@@ -97,20 +97,20 @@ func (sb *SyncBridge) Device(ctx context.Context, id string) (*pb.Device, error)
 	return nil, ErrDeviceNotPresent
 }
 
-func (sb *SyncBridge) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceConfig) error {
+func (sb *SyncBridge) SetDeviceConfig(ctx context.Context, dev *pb.Device, config *pb.DeviceConfig) error {
 	var d *device
 	var ok bool
-	if d, ok = sb.devices[id]; !ok {
+	if d, ok = sb.devices[dev.Id]; !ok {
 		return ErrDeviceNotPresent
 	}
 
 	d.d.Config = proto.Clone(config).(*pb.DeviceConfig)
 	return nil
 }
-func (sb *SyncBridge) SetDeviceState(ctx context.Context, id string, state *pb.DeviceState) error {
+func (sb *SyncBridge) SetDeviceState(ctx context.Context, dev *pb.Device, state *pb.DeviceState) error {
 	var d *device
 	var ok bool
-	if d, ok = sb.devices[id]; !ok {
+	if d, ok = sb.devices[dev.Id]; !ok {
 		return ErrDeviceNotPresent
 	}
 

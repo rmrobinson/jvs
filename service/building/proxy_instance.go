@@ -99,9 +99,9 @@ func (pi *proxyInstance) Device(ctx context.Context, id string) (*pb.Device, err
 }
 
 // SetDeviceConfig updates the linked peer with the config for the specified device.
-func (pi *proxyInstance) SetDeviceConfig(ctx context.Context, id string, config *pb.DeviceConfig) error {
+func (pi *proxyInstance) SetDeviceConfig(ctx context.Context, device *pb.Device, config *pb.DeviceConfig) error {
 	req := &pb.SetDeviceConfigRequest{
-		Id:     id,
+		Id:     device.Id,
 		Config: config,
 	}
 	_, err := pi.remoteDevice.SetDeviceConfig(ctx, req)
@@ -109,9 +109,9 @@ func (pi *proxyInstance) SetDeviceConfig(ctx context.Context, id string, config 
 }
 
 // SetDeviceState updates the linked peer with the state for the specified device.
-func (pi *proxyInstance) SetDeviceState(ctx context.Context, id string, state *pb.DeviceState) error {
+func (pi *proxyInstance) SetDeviceState(ctx context.Context, device *pb.Device, state *pb.DeviceState) error {
 	req := &pb.SetDeviceStateRequest{
-		Id:    id,
+		Id:    device.Id,
 		State: state,
 	}
 	_, err := pi.remoteDevice.SetDeviceState(ctx, req)
