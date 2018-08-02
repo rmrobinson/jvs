@@ -23,6 +23,8 @@ var (
 	ErrDeviceNotRegistered = errors.New("device not registered")
 	// ErrNilArgument is returned if the specified argument is nil but that is not supported.
 	ErrNilArgument = errors.New("nil argument")
+	// ErrOperationNotSupported is returned if the requested operation is not supported by the target bridge or device.
+	ErrOperationNotSupported = errors.New("operation not supported")
 )
 
 // Bridge is an interface to a set of capabilities a device bridge must support.
@@ -273,14 +275,18 @@ func (h *Hub) addBridgeInstance(b Bridge) (*bridgeInstance, error) {
 // RemoveBridge will remove the specified bridge.
 func (h *Hub) RemoveBridge(id string) error {
 	h.bridgesLock.Lock()
-	h.bridgesLock.Unlock()
+	defer h.bridgesLock.Unlock()
 
 	if _, ok := h.bridges[id]; !ok {
 		return ErrBridgeNotRegistered
 	}
 
 	bi := h.bridges[id]
-	bi.cancelRefresh <- true
+
+	// We only want to write to this channel if we know someone will be listening to it.
+	if bi.cancelRefresh != nil {
+		bi.cancelRefresh <- true
+	}
 
 	h.sendBridgeUpdate(pb.BridgeUpdate_REMOVED, bi.bridge)
 	delete(h.bridges, id)

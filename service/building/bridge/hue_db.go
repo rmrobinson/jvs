@@ -9,6 +9,13 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// HuePersister is an interface to persisting bridge profiles.
+type HuePersister interface {
+	Profile(ctx context.Context, bridgeID string) (string, error)
+	SaveProfile(ctx context.Context, bridgeID string, username string) error
+	Close() error
+}
+
 type hueProfile struct {
 	ID             string
 	Username       string
@@ -24,7 +31,6 @@ type HueDB struct {
 // and it will create a DB if one doesn't exist.
 func (s *HueDB) Open(fname string) error {
 	db, err := sql.Open("sqlite3", fname)
-
 	if err != nil {
 		return fmt.Errorf("Unable to open config db: %s\n", err)
 	}
@@ -34,10 +40,11 @@ func (s *HueDB) Open(fname string) error {
 }
 
 // Close cleans up the handle to the DB.
-func (s *HueDB) Close() {
+func (s *HueDB) Close() error {
 	if s.db != nil {
-		s.db.Close()
+		return s.db.Close()
 	}
+	return nil
 }
 
 func (s *HueDB) setupDb() error {
@@ -55,9 +62,9 @@ func (s *HueDB) setupDb() error {
 func (s *HueDB) Profile(ctx context.Context, bridgeID string) (string, error) {
 	cmd := `SELECT id, username, lastModifiedTime FROM hue_profiles
 		WHERE id=?;`
-	p := &hueProfile{}
+	p := hueProfile{}
 
-	err := s.db.QueryRowContext(ctx, cmd, bridgeID).Scan(p.ID, p.Username, p.LastModifiedAt)
+	err := s.db.QueryRowContext(ctx, cmd, bridgeID).Scan(&p.ID, &p.Username, &p.LastModifiedAt)
 
 	switch {
 	case err == sql.ErrNoRows:
@@ -79,11 +86,9 @@ func (s *HueDB) SaveProfile(ctx context.Context, bridgeID string, username strin
 		(?, ?, CURRENT_TIMESTAMP);`
 
 	stmt, err := s.db.Prepare(cmd)
-
 	if err != nil {
 		return err
 	}
-
 	defer stmt.Close()
 
 	_, err = stmt.ExecContext(ctx, bridgeID, username)

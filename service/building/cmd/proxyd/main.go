@@ -14,7 +14,7 @@ import (
 
 func main() {
 	var (
-		listenPort = flag.Int("listenPort", 1338, "Port to listen on")
+		port = flag.Int("port", 1338, "Port to listen on")
 		proxyAddr  = flag.String("proxy", "", "Address to proxy requests to")
 	)
 	flag.Parse()
@@ -32,24 +32,24 @@ func main() {
 	log.Printf("Proxying to %s\n", *proxyAddr)
 
 	// Setup the hub and proxy once we have a connected remote.
-	bm := building.NewHub()
+	hub := building.NewHub()
 
-	p := building.NewProxyBridge(bm, conn)
+	p := building.NewProxyBridge(hub, conn)
 	go p.Run()
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *listenPort))
+	connStr := fmt.Sprintf("%s:%d", "", *port)
+	lis, err := net.Listen("tcp", connStr)
 	if err != nil {
 		log.Printf("Error initializing listener: %s\n", err.Error())
 		os.Exit(1)
 	}
 	defer lis.Close()
+	log.Printf("Listening on %s\n", connStr)
 
-	api := building.NewAPI(bm)
+	api := building.NewAPI(hub)
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterBridgeManagerServer(grpcServer, api)
 	pb.RegisterDeviceManagerServer(grpcServer, api)
-
-	log.Printf("Listening on :%d\n", *listenPort)
 	grpcServer.Serve(lis)
 }

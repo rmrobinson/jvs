@@ -23,7 +23,6 @@ type bridgeInstance struct {
 func newBridgeInstance(bridgeHandle Bridge, bridge *pb.Bridge, notifier Notifier) *bridgeInstance {
 	ret := &bridgeInstance{
 		bridgeHandle:  bridgeHandle,
-		cancelRefresh: make(chan bool),
 
 		notifier: notifier,
 		bridgeID: bridge.Id,
@@ -92,6 +91,8 @@ func (bi *bridgeInstance) refresh() {
 }
 
 func (bi *bridgeInstance) monitor(interval time.Duration) {
+	bi.cancelRefresh = make(chan bool)
+
 	t := time.NewTicker(interval)
 	for {
 		select {

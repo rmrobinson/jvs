@@ -22,6 +22,7 @@ func NewProxyBridge(hub *Hub, conn *grpc.ClientConn) *ProxyHub {
 	return &ProxyHub{
 		hub:  hub,
 		conn: conn,
+		instances: map[string]*proxyInstance{},
 	}
 }
 
@@ -60,6 +61,7 @@ func (p *ProxyHub) runBridgeMonitor() {
 				if err := p.hub.AddAsyncBridge(pi); err != nil {
 					log.Printf("Error adding bridge %s: %s\n", update.Bridge.Id, err.Error())
 				}
+				p.instances[update.Bridge.Id] = pi
 			case pb.BridgeUpdate_CHANGED:
 				pi, ok := p.instances[update.Bridge.Id]
 				if !ok {
@@ -83,6 +85,14 @@ func (p *ProxyHub) runBridgeMonitor() {
 			}
 		} else {
 			log.Printf("Error while monitoring bridges: %s\n", err.Error())
+
+			for bridgeID := range p.instances {
+				log.Printf("Removing bridge ID %s due to connection error\n", bridgeID)
+				if err := p.hub.RemoveBridge(bridgeID); err != nil {
+					log.Printf("Error removing bridge %s: %s\n", update.Bridge.Id, err.Error())
+				}
+				delete(p.instances, bridgeID)
+			}
 			return
 		}
 	}

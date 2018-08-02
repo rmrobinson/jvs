@@ -14,7 +14,14 @@ import (
 )
 
 var (
+	// ErrZoneInvalid is returned if the supplied address maps to an invalid zone
+	ErrZoneInvalid     = errors.New("supplied zone ID is not valid")
+	// ErrChannelInvalid is returned if the supplied input maps to an invalid channel.
+	ErrChannelInvalid  = errors.New("supplied channel ID is not valid")
 	maxZoneID          = 6
+	maxChannelID       = 6
+	zoneAddrPrefix     = "/zone/"
+	channelPrefix      = "Channel"
 	baseMonopAmpBridge = &pb.Bridge{
 		ModelId:          "10761",
 		ModelName:        "Monoprice Amp",
@@ -26,10 +33,59 @@ var (
 		ModelName:        "Zone",
 		ModelDescription: "Monoprice Amp Zone",
 		Manufacturer:     "Monoprice",
+		Input: &pb.Device_InputDevice{
+			Inputs: []string{
+				channelPrefix + "1",
+				channelPrefix + "2",
+				channelPrefix + "3",
+				channelPrefix + "4",
+				channelPrefix + "5",
+				channelPrefix + "6",
+			},
+		},
 	}
 )
 
-// MonopAmpBridge is an implementation of a bridge for the Monoprice amp/stero output device.
+func addrToZone(addr string) int {
+	zoneID, err := strconv.ParseInt(strings.TrimPrefix(addr, zoneAddrPrefix), 10, 32)
+	if err != nil {
+		return 0 // this is an invalid ID
+	}
+	return int(zoneID)
+}
+func zoneToAddr(id int) string {
+	return fmt.Sprintf("%s%d", zoneAddrPrefix, id)
+}
+func inputToChannel(input string) int {
+	channelID, err := strconv.ParseInt(strings.TrimPrefix(input, channelPrefix), 10, 32)
+	if err != nil {
+		return 0 // this is an invalid ID
+	}
+	return int(channelID)
+}
+func channelToInput(id int) string {
+	return fmt.Sprintf("%s%d", channelPrefix, id)
+}
+func volumeFromProto(original int32) int {
+	return int(original / 100) * 38
+}
+func volumeToProto(original int) int32 {
+	return int32(original / 38) * 100
+}
+func balanceFromProto(original int32) int {
+	return int(original / 100) * 20
+}
+func balanceToProto(original int) int32 {
+	return int32(original / 20) * 100
+}
+func noteFromProto(original int32) int {
+	return int(original / 100) * 14
+}
+func noteToProto(original int) int32 {
+	return int32(original / 14) * 100
+}
+
+// MonopAmpBridge is an implementation of a bridge for the Monoprice amp/stereo output device.
 type MonopAmpBridge struct {
 	amp *monopamp.SerialAmplifier
 
@@ -38,21 +94,20 @@ type MonopAmpBridge struct {
 
 // NewMonopAmpBridge takes a previously set up MonopAmp handle and exposes it as a MonopAmp bridge.
 func NewMonopAmpBridge(amp *monopamp.SerialAmplifier, persister building.BridgePersister) *MonopAmpBridge {
-	ret := &MonopAmpBridge{
+	return &MonopAmpBridge{
 		amp:       amp,
 		persister: persister,
 	}
-
-	return ret
 }
 
-func (b *MonopAmpBridge) setup(ctx context.Context) error {
+// Setup seeds the persistent store with the proper data
+func (b *MonopAmpBridge) Setup(ctx context.Context) error {
 	// Populate the devices
 	for zoneID := 1; zoneID <= maxZoneID; zoneID++ {
 		d := &pb.Device{
 			// Id is populated by CreateDevice
 			IsActive: true,
-			Address:  fmt.Sprintf("/zone/%d", zoneID),
+			Address:  zoneToAddr(zoneID),
 			Config: &pb.DeviceConfig{
 				Name:        fmt.Sprintf("Amp Zone %d", zoneID),
 				Description: "Amplifier output for the specified zone",
@@ -67,6 +122,7 @@ func (b *MonopAmpBridge) setup(ctx context.Context) error {
 	return nil
 }
 
+// Bridge retrieves the persisted state of the bridge from the backing store.
 func (b *MonopAmpBridge) Bridge(ctx context.Context) (*pb.Bridge, error) {
 	bridge, err := b.persister.Bridge(ctx)
 	if err != nil {
@@ -88,29 +144,60 @@ func (b *MonopAmpBridge) Bridge(ctx context.Context) (*pb.Bridge, error) {
 	return ret, nil
 }
 
+// SetBridgeConfig persists the new bridge config in the backing store.
 func (b *MonopAmpBridge) SetBridgeConfig(ctx context.Context, config *pb.BridgeConfig) error {
 	return b.persister.SetBridgeConfig(ctx, config)
 }
+// SetBridgeState persists the new bridge state in the backing store.
 func (b *MonopAmpBridge) SetBridgeState(ctx context.Context, state *pb.BridgeState) error {
 	return b.persister.SetBridgeState(ctx, state)
 }
 
+// SearchForAvailableDevices is a noop that returns immediately (nothing to search for).
 func (b *MonopAmpBridge) SearchForAvailableDevices(context.Context) error {
 	return nil
 }
+// AvailableDevices returns an empty result as all devices are always available; never 'to be added'.
 func (b *MonopAmpBridge) AvailableDevices(ctx context.Context) ([]*pb.Device, error) {
-	return b.persister.AvailableDevices(ctx)
+	return nil, nil
 }
+// Devices retrieves the list of zones and the current state of each device from the serial port.
 func (b *MonopAmpBridge) Devices(ctx context.Context) ([]*pb.Device, error) {
 	devices, err := b.persister.Devices(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, device := range devices {
+		zone := b.amp.Zone(addrToZone(device.Address))
+		if zone == nil {
+			return nil, ErrZoneInvalid
+		}
+
+		if err := zone.Refresh(); err != nil {
+			return nil, err
+		}
+
+		device.State.Binary = &pb.DeviceState_BinaryState{
+			IsOn: zone.State().IsOn,
+		}
+		device.State.Input = &pb.DeviceState_InputState{
+			Input: channelToInput(zone.State().SourceChannelID),
+		}
+		device.State.Audio = &pb.DeviceState_AudioState{
+			Volume: volumeToProto(zone.State().Volume),
+			Treble: noteToProto(zone.State().Treble),
+			Bass: noteToProto(zone.State().Bass),
+			IsMuted: zone.State().IsMuteOn,
+		}
+		device.State.StereoAudio = &pb.DeviceState_StereoAudioState{
+			Balance: balanceToProto(zone.State().Balance),
+		}
+
 		proto.Merge(device, baseMonopAmpDevice)
 	}
 	return devices, nil
 }
+// Device retrieves the specified device ID.
 func (b *MonopAmpBridge) Device(ctx context.Context, id string) (*pb.Device, error) {
 	device, err := b.persister.Device(ctx, id)
 	if err != nil {
@@ -120,33 +207,88 @@ func (b *MonopAmpBridge) Device(ctx context.Context, id string) (*pb.Device, err
 	return device, nil
 }
 
+// SetDeviceConfig updates the persister with the new config options for the zone.
 func (b *MonopAmpBridge) SetDeviceConfig(ctx context.Context, dev *pb.Device, config *pb.DeviceConfig) error {
 	return b.persister.SetDeviceConfig(ctx, dev, config)
 }
+// SetDeviceState uses the serial port to update the modified settings on the zone.
 func (b *MonopAmpBridge) SetDeviceState(ctx context.Context, dev *pb.Device, state *pb.DeviceState) error {
-	addr, err := strconv.ParseInt(strings.Trim("/zone/", dev.Address), 10, 32)
-	if err != nil {
-		return err
+	zoneID := addrToZone(dev.Address)
+	if zoneID < 1 || zoneID > maxZoneID {
+		return ErrZoneInvalid
 	}
 
-	zone := b.amp.Zone(int(addr))
+	zone := b.amp.Zone(zoneID)
 	if zone == nil {
-		return errors.New("invalid address")
+		return ErrZoneInvalid
 	}
 
-	err = zone.SetPower(state.Binary.IsOn)
+	// Ensure we are operating on the latest profile of the device before checking for actions to take.
+	err := zone.Refresh()
 	if err != nil {
 		return err
 	}
 
-	// TODO: we will have other things to set here eventually.
+	zState := zone.State()
+
+	if zState.IsOn != state.Binary.IsOn {
+		if err = zone.SetPower(state.Binary.IsOn); err != nil {
+			return err
+		}
+	}
+
+	channelID := inputToChannel(state.Input.Input)
+	if channelID < 1 || channelID > maxChannelID {
+		return ErrChannelInvalid
+	}
+
+	if zState.SourceChannelID != channelID {
+		if err = zone.SetSourceChannel(channelID); err != nil {
+			return err
+		}
+	}
+
+	treble := noteFromProto(state.Audio.Treble)
+	if zState.Treble != treble {
+		if err = zone.SetTreble(treble); err != nil {
+			return err
+		}
+	}
+
+	bass := noteFromProto(state.Audio.Bass)
+	if zState.Bass != bass {
+		if err = zone.SetBass(bass); err != nil {
+			return err
+		}
+	}
+
+	volume := volumeFromProto(state.Audio.Volume)
+	if zState.Volume != volume {
+		if err = zone.SetVolume(volume); err != nil {
+			return err
+		}
+	}
+
+	if zState.IsMuteOn != state.Audio.IsMuted {
+		if err = zone.SetMute(state.Audio.IsMuted); err != nil {
+			return err
+		}
+	}
+
+	balance := balanceFromProto(state.StereoAudio.Balance)
+	if zState.Balance != balance {
+		if err = zone.SetBalance(balance); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
+// AddDevice is not supported on this bridge as there is a fixed number of zones, always ready for use.
 func (b *MonopAmpBridge) AddDevice(ctx context.Context, id string) error {
-	// Move the device from available to in use
-	return b.persister.AddDevice(ctx, id)
+	return building.ErrOperationNotSupported
 }
+// DeleteDevice is not supported on this bridge as there is a fixed number of zones, always ready for use.
 func (b *MonopAmpBridge) DeleteDevice(ctx context.Context, id string) error {
-	// Move the device from in use to available, and remove the saved values
-	return b.persister.DeleteDevice(ctx, id)
+	return building.ErrOperationNotSupported
 }

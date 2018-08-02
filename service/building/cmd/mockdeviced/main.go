@@ -47,19 +47,19 @@ func main() {
 		go mab.Run()
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	connStr := fmt.Sprintf("%s:%d", "", *port)
+	lis, err := net.Listen("tcp", connStr)
 	if err != nil {
 		log.Printf("Error initializing listener: %s\n", err.Error())
 		os.Exit(1)
 	}
 	defer lis.Close()
+	log.Printf("Listening on %s\n", connStr)
 
 	api := building.NewAPI(bm)
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterBridgeManagerServer(grpcServer, api)
 	pb.RegisterDeviceManagerServer(grpcServer, api)
-
-	log.Printf("Listening on :%d\n", *port)
 	grpcServer.Serve(lis)
 }

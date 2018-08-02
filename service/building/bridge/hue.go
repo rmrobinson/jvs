@@ -2,92 +2,167 @@ package bridge
 
 import (
 	"context"
-	"time"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 
 	hue "github.com/rmrobinson/hue-go"
-	"github.com/rmrobinson/jvs/service/device/pb"
+	"github.com/rmrobinson/jvs/service/building"
+	"github.com/rmrobinson/jvs/service/building/pb"
 )
 
-const (
-	stateRefreshInterval = 60 * time.Second
+
+var (
+	ErrHueAddressInvalid = errors.New("hue address invalid")
+	ErrHueResponseError = errors.New("hue response error")
+	ErrDeviceLacksRangeCapability = errors.New("invalid argument supplied: device lacks range capabilities")
+	ErrDeviceRangeLimitExceeded = errors.New("invalid argument supplied: range value outside of allowed values")
+	lightAddrPrefix   = "/light/"
+	sensorAddrPrefix  = "/sensor/"
 )
 
-// HuePersister is an interface to persisting bridge profiles.
-type HuePersister interface {
-	Profile(ctx context.Context, bridgeID string) (string, error)
-	SaveProfile(ctx context.Context, bridgeID string, username string) error
+func addrToLight(addr string) int {
+	id, err := strconv.ParseInt(strings.TrimPrefix(addr, lightAddrPrefix), 10, 32)
+	if err != nil {
+		return 0 // this is an invalid ID
+	}
+	return int(id)
+}
+func addrToSensor(addr string) int {
+	id, err := strconv.ParseInt(strings.TrimPrefix(addr, sensorAddrPrefix), 10, 32)
+	if err != nil {
+		return 0 // this is an invalid ID
+	}
+	return int(id)
 }
 
-// HueBridge is an implementation of a bridge for the Hue service.
+// HueBridge is an implementation of a bridge for the Friends of Hue system.
 type HueBridge struct {
-	bn  BridgeNotifier
-	hue *hue.Bridge
-
-	state               hue.BridgeDescription
-	lastStateRefreshErr error
-	stopStateRefresh    chan struct{}
+	bridge *hue.Bridge
 }
 
 // NewHueBridge takes a previously set up Hue handle and exposes it as a Hue bridge.
-func NewHueBridge(notifier BridgeNotifier, bridge *hue.Bridge) *HueBridge {
-	ret := &HueBridge{
-		bn:               notifier,
-		hue:              bridge,
-		stopStateRefresh: make(chan struct{}),
+func NewHueBridge(bridge *hue.Bridge) *HueBridge {
+	return &HueBridge{
+		bridge:       bridge,
 	}
-
-	go ret.stateRefresher()
-
-	return ret
 }
 
-func (b *HueBridge) Close() {
-	close(b.stopStateRefresh)
+// Setup seeds the persistent store with the proper data
+func (b *HueBridge) Setup(ctx context.Context) error {
+	return nil
 }
 
-func (b *HueBridge) ID() string {
-	return b.state.Device.SerialNumber
-}
-
-func (b *HueBridge) ModelID() string {
-	return b.state.Device.ModelNumber
-}
-func (b *HueBridge) ModelName() string {
-	return b.state.Device.ModelName
-}
-func (b *HueBridge) ModelDescription() string {
-	return b.state.Device.ModelDescription
-}
-func (b *HueBridge) Manufacturer() string {
-	return b.state.Device.Manufacturer
-}
-func (b *HueBridge) IconURLs() []string {
-	ret := []string{}
-
-	for _, icon := range b.state.Device.Icons {
-		ret = append(ret, b.state.UrlBase+"/"+icon.FileName)
+// Bridge retrieves the persisted state of the bridge from the backing store.
+func (b *HueBridge) Bridge(ctx context.Context) (*pb.Bridge, error) {
+	desc, err := b.bridge.Description()
+	if err != nil {
+		return nil, err
 	}
-
-	return ret
-}
-func (b *HueBridge) Name() string {
-	return b.state.Device.FriendlyName
-}
-func (b *HueBridge) SetName(name string) error {
-	c := &hue.ConfigArg{}
-	c.SetName(name)
-	return b.hue.SetConfig(c)
-}
-
-func (b *HueBridge) Devices() ([]*pb.Device, error) {
-	lights, err := b.hue.Lights()
-
+	config, err := b.bridge.Config()
 	if err != nil {
 		return nil, err
 	}
 
-	sensors, err := b.hue.Sensors()
+	ret := &pb.Bridge{
+		Id: config.Id,
+		ModelId: desc.Device.ModelNumber,
+		ModelName: desc.Device.ModelName,
+		ModelDescription: desc.Device.ModelDescription,
+		Manufacturer: desc.Device.Manufacturer,
+		Config: &pb.BridgeConfig{
+			Name: desc.Device.FriendlyName,
+			Address: &pb.Address{
+				Ip: &pb.Address_Ip{
+					Host: config.IpAddress,
+					Netmask: config.SubnetMask,
+					Gateway: config.GatewayAddress,
+				},
+			},
+			Timezone: config.Timezone,
+		},
+		State: &pb.BridgeState{
+			Zigbee: &pb.BridgeState_Zigbee{
+				Channel: config.ZigbeeChannel,
+			},
+			Version: &pb.BridgeState_Version{
+				Sw: config.SwVersion,
+				Api: config.ApiVersion,
+			},
+		},
+	}
 
+	for _, icon := range desc.Device.Icons {
+		ret.IconUrl = append(ret.IconUrl, desc.UrlBase+"/"+icon.FileName)
+	}
+
+	return ret, nil
+}
+
+// SetBridgeConfig persists the new bridge config on the Hue bridge.
+// Only the name can currently be changed.
+// TODO: support setting the static IP of the bridge.
+func (b *HueBridge) SetBridgeConfig(ctx context.Context, config *pb.BridgeConfig) error {
+	updatedConfig := &hue.ConfigArg{}
+	updatedConfig.SetName(config.Name)
+	return b.bridge.SetConfig(updatedConfig)
+}
+// SetBridgeState persists the new bridge state on the Hue bridge.
+func (b *HueBridge) SetBridgeState(ctx context.Context, state *pb.BridgeState) error {
+	return building.ErrOperationNotSupported
+}
+
+// SearchForAvailableDevices is a noop that returns immediately (nothing to search for).
+func (b *HueBridge) SearchForAvailableDevices(context.Context) error {
+	if err := b.bridge.SearchForNewLights(); err != nil {
+		return err
+	}
+	if err := b.bridge.SearchForNewSensors(); err != nil {
+		return err
+	}
+	return nil
+}
+// AvailableDevices returns an empty result as all devices are always available; never 'to be added'.
+func (b *HueBridge) AvailableDevices(ctx context.Context) ([]*pb.Device, error) {
+	lights, err := b.bridge.NewLights()
+	if err != nil {
+		return nil, err
+	}
+	sensors, err := b.bridge.NewSensors()
+	if err != nil {
+		return nil, err
+	}
+
+	var devices []*pb.Device
+
+	for _, light := range lights {
+		devices = append(devices, &pb.Device{
+			Address: lightAddrPrefix + light.Id,
+			Config: &pb.DeviceConfig{
+				Name: light.Name,
+			},
+		})
+	}
+	for _, sensor := range sensors {
+		devices = append(devices, &pb.Device{
+			Address: sensorAddrPrefix + sensor.Id,
+			Config: &pb.DeviceConfig{
+				Name: sensor.Name,
+			},
+		})
+	}
+
+	return devices, nil
+}
+// Devices retrieves the list of lights and sensors from the bridge along with their current states.
+func (b *HueBridge) Devices(ctx context.Context) ([]*pb.Device, error) {
+	lights, err := b.bridge.Lights()
+	if err != nil {
+		return nil, err
+	}
+
+	sensors, err := b.bridge.Sensors()
 	if err != nil {
 		return nil, err
 	}
@@ -96,40 +171,86 @@ func (b *HueBridge) Devices() ([]*pb.Device, error) {
 
 	for _, light := range lights {
 		d := convertLightToDevice(light)
-		d.Address = b.ID()
 		devices = append(devices, d)
 	}
 	for _, sensor := range sensors {
 		d := convertSensorToDevice(sensor)
-		d.Address = b.ID()
 		devices = append(devices, d)
 	}
 
 	return devices, nil
 }
+// Device retrieves the specified device ID.
+func (b *HueBridge) Device(ctx context.Context, id string) (*pb.Device, error) {
+	devices, err := b.Devices(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-func (b *HueBridge) stateRefresher() {
-	ticker := time.NewTicker(stateRefreshInterval)
-
-	for {
-		select {
-		case <-ticker.C:
-			state, err := b.hue.Description()
-
-			if err != nil {
-				b.lastStateRefreshErr = err
-				continue
-			}
-
-			if b.state.UrlBase != state.UrlBase {
-				b.state = state
-				b.bn.BridgeUpdated(b.ID())
-			}
-		case <-b.stopStateRefresh:
-			ticker.Stop()
-			return
+	for _, device := range devices {
+		if device.Id == id {
+			return device, nil
 		}
 	}
+
+	return nil, building.ErrDeviceNotFound.Err()
+}
+
+// SetDeviceConfig updates the bridge with the new config options for the light or sensor.
+func (b *HueBridge) SetDeviceConfig(ctx context.Context, dev *pb.Device, config *pb.DeviceConfig) error {
+	if strings.Contains(dev.Address, lightAddrPrefix) {
+		id := addrToLight(dev.Address)
+		args := convertLightDiffToArgs(dev, config)
+
+		err := b.bridge.SetLight(fmt.Sprintf("%d", id), &args)
+		if err != nil {
+			return err
+		} else if len(args.Errors()) > 0 {
+			return ErrHueResponseError
+		}
+		return nil
+	} else if strings.Contains(dev.Address, sensorAddrPrefix) {
+		id := addrToSensor(dev.Address)
+		args := convertSensorDiffToArgs(dev, config)
+
+		err := b.bridge.SetSensor(fmt.Sprintf("%d", id), &args)
+		if err != nil {
+			return err
+		} else if len(args.Errors()) > 0 {
+			return ErrHueResponseError
+		}
+		return nil
+	}
+
+	return ErrHueAddressInvalid
+}
+// SetDeviceState updates the bridge with the new state options for the light (sensors aren't supported).
+func (b *HueBridge) SetDeviceState(ctx context.Context, dev *pb.Device, state *pb.DeviceState) error {
+	if strings.Contains(dev.Address, lightAddrPrefix) {
+		id := addrToLight(dev.Address)
+		args, err := convertLightStateDiffToArgs(dev, state)
+		if err != nil {
+			return err
+		}
+
+		err = b.bridge.SetLightState(fmt.Sprintf("%d", id), &args)
+		if err != nil {
+			return err
+		} else if len(args.Errors()) > 0 {
+			return ErrHueResponseError
+		}
+		return nil
+	}
+
+	return ErrHueAddressInvalid
+}
+// AddDevice is not implemented yet.
+func (b *HueBridge) AddDevice(ctx context.Context, id string) error {
+	return building.ErrNotImplemented.Err()
+}
+// DeleteDevice is not implemented yet.
+func (b *HueBridge) DeleteDevice(ctx context.Context, id string) error {
+	return building.ErrNotImplemented.Err()
 }
 
 func convertLightToDevice(l hue.Light) *pb.Device {
@@ -137,7 +258,7 @@ func convertLightToDevice(l hue.Light) *pb.Device {
 	d.Reset()
 
 	d.Id = l.UniqueId
-	d.Path = "light/" + l.Id
+	d.Address = lightAddrPrefix + l.Id
 	d.IsActive = true
 
 	d.Manufacturer = l.ManufacturerName
@@ -194,7 +315,7 @@ func convertSensorToDevice(s hue.Sensor) *pb.Device {
 	d.Reset()
 
 	d.Id = s.UniqueId
-	d.Path = "sensor/" + s.Id
+	d.Address = sensorAddrPrefix + s.Id
 
 	d.Manufacturer = s.ManufacturerName
 	d.ModelId = s.ModelId
@@ -255,4 +376,87 @@ func convertSensorToDevice(s hue.Sensor) *pb.Device {
 	}
 
 	return d
+}
+
+func convertLightDiffToArgs(currDevice *pb.Device, newConfig *pb.DeviceConfig) hue.LightArg {
+	var args hue.LightArg
+
+	if currDevice.Config == nil && newConfig != nil {
+		args.SetName(newConfig.Name)
+	} else if currDevice.Config != nil && newConfig == nil {
+		args.SetName("")
+	} else if currDevice.Config.Name != newConfig.Name {
+		args.SetName(newConfig.Name)
+	}
+
+	return args
+}
+
+func convertSensorDiffToArgs(currDevice *pb.Device, newConfig *pb.DeviceConfig) hue.SensorArg {
+	var args hue.SensorArg
+
+	if currDevice.Config == nil && newConfig != nil {
+		args.SetName(newConfig.Name)
+	} else if currDevice.Config != nil && newConfig == nil {
+		args.SetName("")
+	} else if currDevice.Config.Name != newConfig.Name {
+		args.SetName(newConfig.Name)
+	}
+
+	return args
+}
+
+func convertLightStateDiffToArgs(currDevice *pb.Device, newState *pb.DeviceState) (args hue.LightStateArg, err error) {
+	if currDevice.State == nil && newState != nil {
+		if newState.Binary != nil {
+			args.SetIsOn(newState.Binary.IsOn)
+		}
+		if newState.Range != nil {
+			if currDevice.Range == nil {
+				err = ErrDeviceLacksRangeCapability
+				return
+			} else if newState.Range.Value > currDevice.Range.Maximum || newState.Range.Value < currDevice.Range.Minimum {
+				err = ErrDeviceRangeLimitExceeded
+				return
+			} else {
+				args.SetBrightness(uint8(newState.Range.Value))
+			}
+		}
+		if newState.ColorRgb != nil {
+			colour := hue.RGB{
+				Red: uint8(newState.ColorRgb.Red),
+				Green: uint8(newState.ColorRgb.Green),
+				Blue: uint8(newState.ColorRgb.Blue)}
+			args.SetRGB(colour, currDevice.ModelId)
+		}
+	} else if currDevice.State != nil && newState == nil {
+		args.SetIsOn(false)
+	} else if currDevice.State != nil && newState != nil {
+		if currDevice.State.Binary != nil && newState.Binary != nil && currDevice.State.Binary.IsOn != newState.Binary.IsOn {
+			args.SetIsOn(newState.Binary.IsOn)
+		}
+		if newState.Range != nil {
+			if currDevice.Range == nil {
+				err = ErrDeviceLacksRangeCapability
+				return
+			} else if newState.Range.Value > currDevice.Range.Maximum || newState.Range.Value < currDevice.Range.Minimum {
+				err = ErrDeviceRangeLimitExceeded
+				return
+			} else if currDevice.State.Range.Value != newState.Range.Value {
+				args.SetBrightness(uint8(newState.Range.Value))
+			}
+		}
+		if newState.ColorRgb != nil {
+			if currDevice.State.ColorRgb == nil ||
+				(currDevice.State.ColorRgb.Red != newState.ColorRgb.Red || currDevice.State.ColorRgb.Green != newState.ColorRgb.Green || currDevice.State.ColorRgb.Blue != newState.ColorRgb.Blue) {
+				colour := hue.RGB{
+					Red: uint8(newState.ColorRgb.Red),
+					Green: uint8(newState.ColorRgb.Green),
+					Blue: uint8(newState.ColorRgb.Blue)}
+				args.SetRGB(colour, currDevice.ModelId)
+			}
+		}
+	}
+
+	return
 }

@@ -67,6 +67,21 @@ message DeviceState {
 
     PresenceState presence = 19;
 
+    message AudioState {
+        int32 volume = 1;
+        int32 treble = 2;
+        int32 bass = 3;
+        bool is_muted = 4;
+    }
+
+    AudioState audio = 20;
+
+    message StereoAudioState {
+        int32 balance = 1;
+    }
+
+    StereoAudioState stereo_audio = 21;
+
     string version = 100;
 }
 
