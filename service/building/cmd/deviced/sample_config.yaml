@@ -1,0 +1,17 @@
+bridges:
+  - type: "br"
+    cachePath: "/tmp/br.db"
+    address:
+      usbPath: "/dev/tty.usbserial"
+  - type: "x10"
+    cachePath: "/tmp/x10.db"
+    address:
+      usbPath: "/dev/tty.usbserial"
+  - type: "hue"
+    cachePath: "/tmp/hue.db"
+  - type: "proxy"
+    address:
+      ipAddress: "127.0.0.1"
+      port: 1337
+      proto: "tcp"
+  - type: "unknown"

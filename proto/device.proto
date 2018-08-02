@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package proto;
+package pb;
 
 message DeviceConfig {
     string name = 1;
@@ -67,6 +67,21 @@ message DeviceState {
 
     PresenceState presence = 19;
 
+    message AudioState {
+        int32 volume = 1;
+        int32 treble = 2;
+        int32 bass = 3;
+        bool is_muted = 4;
+    }
+
+    AudioState audio = 20;
+
+    message StereoAudioState {
+        int32 balance = 1;
+    }
+
+    StereoAudioState stereo_audio = 21;
+
     string version = 100;
 }
 
@@ -109,22 +124,22 @@ message Device {
 }
 
 message GetDevicesRequest {
+    string bridge_id = 1;
 }
 message GetDevicesResponse {
     repeated Device devices = 1;
 }
 
 message GetDeviceRequest {
-    string address = 1;
+    string id = 1;
 }
 message GetDeviceResponse {
     Device device = 1;
 }
 
 message WatchDevicesRequest {
-    repeated string addresses = 1;
 }
-message WatchDevicesResponse {
+message DeviceUpdate {
         enum Action {
             ADDED = 0;
             CHANGED = 1;
@@ -133,10 +148,11 @@ message WatchDevicesResponse {
 
         Action action = 1;
         Device device = 2;
+        string bridge_id = 3;
 }
 
 message SetDeviceConfigRequest {
-    string address = 1;
+    string id = 1;
     string version = 2;
     DeviceConfig config = 10;
 }
@@ -146,7 +162,7 @@ message SetDeviceConfigResponse {
 }
 
 message SetDeviceStateRequest {
-    string address = 1;
+    string id = 1;
     string version = 2;
     DeviceState state = 10;
 }
@@ -158,11 +174,11 @@ message SetDeviceStateResponse {
 service DeviceManager {
     rpc GetDevices(GetDevicesRequest) returns (GetDevicesResponse) {}
 
-//    rpc GetAvailableDevices(GetDevicesRequest) returns (GetDevicesResponse) {}
+    rpc GetAvailableDevices(GetDevicesRequest) returns (GetDevicesResponse) {}
 
     rpc GetDevice(GetDeviceRequest) returns (GetDeviceResponse) {}
 
-    rpc WatchDevices(WatchDevicesRequest) returns (stream WatchDevicesResponse) {}
+    rpc WatchDevices(WatchDevicesRequest) returns (stream DeviceUpdate) {}
 
     rpc SetDeviceConfig(SetDeviceConfigRequest) returns (SetDeviceConfigResponse) {}
 
