@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	hue "github.com/rmrobinson/hue-go"
+	"github.com/rmrobinson/hue-go"
 	"github.com/rmrobinson/jvs/service/building"
 	"github.com/rmrobinson/jvs/service/building/bridge"
 	"github.com/rmrobinson/jvs/service/building/pb"
@@ -61,10 +61,10 @@ func (b *hueImpl) Run() {
 	for {
 		select {
 		case br := <-bridges:
-			log.Printf("Hue bridge %s located\n", br.Id())
-			username, err := b.db.Profile(context.Background(), br.Id())
+			log.Printf("Hue bridge %s located\n", br.ID())
+			username, err := b.db.Profile(context.Background(), br.ID())
 			if err != nil {
-				log.Printf("Unable to get pairing for ID '%s': %s\n", br.Id(), err)
+				log.Printf("Unable to get pairing for ID '%s': %s\n", br.ID(), err)
 			} else {
 				br.Username = username
 			}

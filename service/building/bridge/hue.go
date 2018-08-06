@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	hue "github.com/rmrobinson/hue-go"
+	"github.com/rmrobinson/hue-go"
 	"github.com/rmrobinson/jvs/service/building"
 	"github.com/rmrobinson/jvs/service/building/pb"
 )
@@ -66,7 +66,7 @@ func (b *HueBridge) Bridge(ctx context.Context) (*pb.Bridge, error) {
 	}
 
 	ret := &pb.Bridge{
-		Id: config.Id,
+		Id: config.ID,
 		ModelId: desc.Device.ModelNumber,
 		ModelName: desc.Device.ModelName,
 		ModelDescription: desc.Device.ModelDescription,
@@ -75,7 +75,7 @@ func (b *HueBridge) Bridge(ctx context.Context) (*pb.Bridge, error) {
 			Name: desc.Device.FriendlyName,
 			Address: &pb.Address{
 				Ip: &pb.Address_Ip{
-					Host: config.IpAddress,
+					Host: config.IPAddress,
 					Netmask: config.SubnetMask,
 					Gateway: config.GatewayAddress,
 				},
@@ -88,13 +88,13 @@ func (b *HueBridge) Bridge(ctx context.Context) (*pb.Bridge, error) {
 			},
 			Version: &pb.BridgeState_Version{
 				Sw: config.SwVersion,
-				Api: config.ApiVersion,
+				Api: config.APIVersion,
 			},
 		},
 	}
 
 	for _, icon := range desc.Device.Icons {
-		ret.IconUrl = append(ret.IconUrl, desc.UrlBase+"/"+icon.FileName)
+		ret.IconUrl = append(ret.IconUrl, desc.URLBase+"/"+icon.FileName)
 	}
 
 	return ret, nil
@@ -138,7 +138,7 @@ func (b *HueBridge) AvailableDevices(ctx context.Context) ([]*pb.Device, error) 
 
 	for _, light := range lights {
 		devices = append(devices, &pb.Device{
-			Address: lightAddrPrefix + light.Id,
+			Address: lightAddrPrefix + light.ID,
 			Config: &pb.DeviceConfig{
 				Name: light.Name,
 			},
@@ -146,7 +146,7 @@ func (b *HueBridge) AvailableDevices(ctx context.Context) ([]*pb.Device, error) 
 	}
 	for _, sensor := range sensors {
 		devices = append(devices, &pb.Device{
-			Address: sensorAddrPrefix + sensor.Id,
+			Address: sensorAddrPrefix + sensor.ID,
 			Config: &pb.DeviceConfig{
 				Name: sensor.Name,
 			},
@@ -257,12 +257,12 @@ func convertLightToDevice(l hue.Light) *pb.Device {
 	d := &pb.Device{}
 	d.Reset()
 
-	d.Id = l.UniqueId
-	d.Address = lightAddrPrefix + l.Id
+	d.Id = l.UniqueID
+	d.Address = lightAddrPrefix + l.ID
 	d.IsActive = true
 
 	d.Manufacturer = l.ManufacturerName
-	d.ModelId = l.ModelId
+	d.ModelId = l.ModelID
 
 	config := &pb.DeviceConfig{}
 	d.Config = config
@@ -293,7 +293,7 @@ func convertLightToDevice(l hue.Light) *pb.Device {
 		if l.State.ColorMode == "xy" {
 			xy := hue.XY{X: l.State.XY[0], Y: l.State.XY[1]}
 			rgb := hue.RGB{}
-			rgb.FromXY(xy, l.ModelId)
+			rgb.FromXY(xy, l.ModelID)
 			state.ColorRgb = &pb.DeviceState_RGBState{Red: int32(rgb.Red), Blue: int32(rgb.Blue), Green: int32(rgb.Green)}
 		} else if l.State.ColorMode == "ct" {
 			rgb := hue.RGB{}
@@ -314,11 +314,11 @@ func convertSensorToDevice(s hue.Sensor) *pb.Device {
 	d := &pb.Device{}
 	d.Reset()
 
-	d.Id = s.UniqueId
-	d.Address = sensorAddrPrefix + s.Id
+	d.Id = s.UniqueID
+	d.Address = sensorAddrPrefix + s.ID
 
 	d.Manufacturer = s.ManufacturerName
-	d.ModelId = s.ModelId
+	d.ModelId = s.ModelID
 
 	config := &pb.DeviceConfig{}
 	d.Config = config
