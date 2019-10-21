@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package pb;
+
+enum Comparison {
+    Equal = 0;
+    GreaterThan = 1;
+    GreaterThanEqualTo = 2;
+    LessThan = 3;
+    LessThanEqualTo = 4;
+}
+
+message DeviceCondition {
+    string device_id = 1;
+
+
+    message Binary {
+        bool is_on = 1;
+    }
+    Binary binary = 50;
+
+    message Range {
+        int32 value = 1;
+        Comparison comparison = 2;
+    }
+    Range range = 51;
+
+    message RGB {
+        int32 red = 1;
+        int32 green = 2;
+        int32 blue = 3;
+        Comparison red_check = 11;
+        Comparison green_check = 12;
+        Comparison blue_check = 113;
+    }
+    RGB rgb = 52;
+
+    message Speed {
+        int32 value = 1;
+        Comparison comparison = 2;
+    }
+    Speed speed = 53;
+
+    message Input {
+        string input = 1;
+    }
+    Input input = 54;
+
+    message Control {
+        bool is_open = 1;
+    }
+    Control control = 55;
+
+    message Temperature {
+        int32 temperature_celsius = 1;
+    }
+    Temperature temperature = 56;
+
+    message Button {
+        int32 id = 1;
+        bool is_on = 2;
+    }
+    Button button = 57;
+
+    message Presence {
+        bool is_present = 1;
+    }
+    Presence presence = 58;
+
+}
+
+message Condition {
+    string name = 1;
+    bool negate = 2;
+
+    // --- Built-in conditionals ---
+
+    // A combination of conditions that will be evaluated together.
+    // This allows an arbitrarily complex statement to be generated.
+    message Set {
+        enum Operator {
+            And = 0;
+            Or = 1;
+        }
+        Operator operator = 1;
+        repeated Condition conditions = 2;
+    }
+    Set set = 101;
+
+    // A scheduled condition that wil trigger on the supplied interval.
+    // This executes using the crontab syntax, in the specified timezone.
+    message Cron {
+        string entry = 1;
+        string tz = 11;
+    }
+    Cron cron = 102;
+
+    // A conditional that will evaluate to true when the tied
+    // timer action has expired. This depends on the id specified
+    // in the condition matching the timer; it also allows multiple
+    // conditions to trigger on the same timer.
+    message Timer {
+        string id = 1;
+    }
+    Timer timer = 103;
+
+    // --- Additional conditionals ---
+    DeviceCondition device = 151;
+}
+
+message Action {
+    enum Type {
+        Log = 0;
+    }
+    string name = 1;
+    Type type = 2;
+}
+
+message Policy {
+    string name = 1;
+    int32 weight = 2;
+
+    Condition condition = 11;
+    repeated Action actions = 12;
+}
+
+message PolicySet {
+    repeated Policy policies = 1;
+}
